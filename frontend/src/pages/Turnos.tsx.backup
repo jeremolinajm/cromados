@@ -1,0 +1,911 @@
+import { ensureCsrf, getCsrfCookie } from "../lib/authApi";
+import { useEffect, useMemo, useState } from "react";
+import { BASE, RAW_URL, resolveUrl } from "../lib/adminApi";
+import { useToast } from '../components/Toast';
+import IntroSucursales from "../components/IntroSucursales";
+import DatosClienteModal from "../components/DatosClienteModal";
+
+
+/** ===== Tipos públicos ===== */
+type SucursalDTO = { id: number; nombre: string; direccion: string; fotoUrl?: string | null };
+type BarberoDTO = { id: number; nombre: string; sucursalId: number; fotoUrl?: string | null };
+type ServicioDTO = {
+  id: number;
+  nombre: string;
+  precio: number;
+  duracionMin: number;
+  descripcion?: string | null;
+  sesiones?: number | null;
+};
+
+// ⚠️ Ajuste: solo pedimos estos 3 campos ahora
+type ClienteForm = { nombre: string; edad: string; telefono: string };
+
+/** ===== Helpers ===== */
+async function getJSON<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${url}`);
+  return res.json();
+}
+const PublicApi = {
+  async sucursales(): Promise<SucursalDTO[]> {
+    return getJSON(`${BASE}/sucursales`);
+  },
+  async barberosBySucursal(sucursalId: number): Promise<BarberoDTO[]> {
+    return getJSON(`${BASE}/barberos?sucursalId=${sucursalId}`);
+  },
+  async servicios(): Promise<ServicioDTO[]> {
+    return getJSON(`${BASE}/servicios`);
+  },
+};
+
+type DayOpt = { iso: string; label: string };
+
+/** Forzar labels en español */
+function buildMonthDays(year: number, monthIdx0: number): DayOpt[] {
+  const out: DayOpt[] = [];
+  const d = new Date(year, monthIdx0, 1);
+  const fmt = (x: Date) =>
+    x.toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" });
+  const pad = (n: number) => String(n).padStart(2, "0");
+  while (d.getMonth() === monthIdx0) {
+    const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    out.push({ iso, label: fmt(d) });
+    d.setDate(d.getDate() + 1);
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return out.filter((opt) => {
+    // no usamos new Date("YYYY-MM-DD") para evitar corrimientos
+    const dd = dateFromISOLocal(opt.iso);
+    dd.setHours(0, 0, 0, 0);
+    return dd >= today;
+  });
+}
+
+/** helper: a partir de "YYYY-MM-DD" devuelve Date local sin corrimiento */
+function dateFromISOLocal(yyyy_mm_dd: string): Date {
+  const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** helper: suma minutos a "HH:mm" */
+function addMinutes(hhmm: string, plus: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const t = new Date(2000, 0, 1, h, m, 0, 0);
+  t.setMinutes(t.getMinutes() + plus);
+  const hh = String(t.getHours()).padStart(2, "0");
+  const mm = String(t.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/** helper: obtiene rango [inicio..fin] con paso de 30m (FIN INCLUSIVO) */
+function rangeTimes(inicio: string, fin: string): string[] {
+  const acc: string[] = [];
+  let t = inicio;
+  while (t <= fin) {           // 👈 ahora incluye el borde superior
+    acc.push(t);
+    t = addMinutes(t, 30);
+  }
+  return acc;
+}
+
+/** ===== Componente principal ===== */
+type PlanItem = {
+  key: string; // único
+  servicioId: number;
+  label: string; // “Corte clásico (1/4)”
+  precio: number;
+  fecha?: string | null;
+  hora?: string | null;
+};
+
+export default function Turnos() {
+  const toast = useToast();
+
+  const [introVisible, setIntroVisible] = useState(true);
+
+
+  // datos
+  const [sucursales, setSucursales] = useState<SucursalDTO[]>([]);
+  const [barberos, setBarberos] = useState<BarberoDTO[]>([]);
+  const [servicios, setServicios] = useState<ServicioDTO[]>([]);
+
+  // selección
+  const [sucursalId, setSucursalId] = useState<number | null>(null);
+  const [barberoId, setBarberoId] = useState<number | null>(null);
+  const [cantidades, setCantidades] = useState<Record<number, number>>({});
+  const [err, setErr] = useState<string | null>(null);
+
+  // formulario cliente (solo 3 campos)
+  const [cliente, setCliente] = useState<ClienteForm>({ nombre: "", telefono: "", edad: "" });
+
+  // toggle de seña 50%
+  const [senia, setSenia] = useState(false);
+
+  // plan por sesiones
+  const [plan, setPlan] = useState<PlanItem[]>([]);
+
+  const totalImporte = useMemo(
+    () => plan.reduce((acc, row) => acc + (row.precio || 0), 0),
+    [plan]
+  );
+
+  // ==== Calendario por sesión (independiente) ====
+  // offset de mes POR FILA/SESIÓN (no por servicio)
+  const [monthOffsetByRow, setMonthOffsetByRow] = useState<Record<string, number>>({});
+  const offsetForRow = (rowKey: string) => monthOffsetByRow[rowKey] ?? 0;
+  const gotoPrevMonthRow = (rowKey: string) => {
+    setMonthOffsetByRow((prev) => {
+      const curr = prev[rowKey] ?? 0;
+      const next = Math.max(0, curr - 1); // no ir a meses anteriores al actual
+      return { ...prev, [rowKey]: next };
+    });
+  };
+  const gotoNextMonthRow = (rowKey: string) => {
+    setMonthOffsetByRow((prev) => ({ ...prev, [rowKey]: (prev[rowKey] ?? 0) + 1 }));
+  };
+  const labelMesForRow = (rowKey: string) => {
+    const base = new Date();
+    base.setMonth(base.getMonth() + offsetForRow(rowKey));
+    return base.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  };
+
+  // Semana abierta del barbero (1=Lun..7=Dom)
+  const [weekOpenDays, setWeekOpenDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6])); // por defecto Lun–Sáb
+  const [weekRanges, setWeekRanges] = useState<Record<number, { inicio: string; fin: string }[]>>({});
+
+  // Días filtrados por sesión según la semana abierta del barbero
+  const monthDaysForRow = (rowKey: string): DayOpt[] => {
+    const base = new Date();
+    base.setDate(1);
+    base.setMonth(base.getMonth() + offsetForRow(rowKey));
+    return buildMonthDays(base.getFullYear(), base.getMonth()).filter((opt) => {
+      const dd = dateFromISOLocal(opt.iso).getDay(); // 0=Dom..6=Sáb
+      const dow = dd === 0 ? 7 : dd; // 1=Lun..7=Dom
+      return weekOpenDays.has(dow);
+    });
+  };
+
+
+  // ================== effects ==================
+  useEffect(() => {
+    (async () => {
+      try {
+        setErr(null);
+        setSucursales(await PublicApi.sucursales());
+      } catch (e: any) {
+        setErr(e?.message || "Error cargando sucursales.");
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (!sucursalId) {
+        setBarberos([]);
+        return;
+      }
+      try {
+        setBarberos(await PublicApi.barberosBySucursal(sucursalId));
+      } catch (e: any) {
+        setErr(e?.message || "Error cargando barberos.");
+      }
+    })();
+  }, [sucursalId]);
+
+  // traer semana del barbero (días abiertos y rangos)
+  useEffect(() => {
+    (async () => {
+      if (!barberoId) {
+        setWeekOpenDays(new Set([1, 2, 3, 4, 5, 6])); // Lun–Sáb por defecto
+        setWeekRanges({});
+        return;
+      }
+      try {
+        const res = await fetch(`${BASE}/barberos/${barberoId}/horarios-semana`);
+        if (!res.ok) throw new Error();
+        const arr: Array<{ diaSemana: number; inicio: string; fin: string }> = await res.json();
+
+        const days = new Set<number>();
+        const map: Record<number, { inicio: string; fin: string }[]> = {};
+
+        for (const h of arr) {
+          const n = Number(h.diaSemana);
+          const dow = n === 0 ? 7 : n; // ⚠️ normalizar: 0 (Dom) -> 7
+          days.add(dow);
+          (map[dow] ||= []).push({ inicio: h.inicio, fin: h.fin });
+        }
+        // ordenar tramos por hora de inicio
+        Object.keys(map).forEach(k =>
+          map[Number(k)].sort((a, b) => a.inicio.localeCompare(b.inicio))
+        );
+
+        setWeekOpenDays(days);
+        setWeekRanges(map);
+      } catch {
+        // dejamos defaults
+      }
+    })();
+  }, [barberoId]);
+
+
+  // Disponibilidad por fecha (YYYY-MM-DD) cacheada desde el backend
+  const [horasDisponiblesByDate, setHorasDisponiblesByDate] = useState<Record<string, string[]>>({});
+
+  async function cargarDisponibilidadFecha(fechaISO: string): Promise<string[]> {
+    if (!barberoId || !fechaISO) return [];
+    // cache simple por fecha
+    if (horasDisponiblesByDate[fechaISO]) return horasDisponiblesByDate[fechaISO];
+    const res = await fetch(`${BASE}/disponibilidad?barberoId=${barberoId}&fecha=${fechaISO}`);
+    if (!res.ok) return [];
+    const horas: string[] = await res.json();
+    setHorasDisponiblesByDate(prev => ({ ...prev, [fechaISO]: horas }));
+    return horas;
+  }
+
+
+
+  // helper común para no repetir lógica
+  function buildRowsForService(srv: ServicioDTO, qty: number): PlanItem[] {
+    const sesionesPorPack = Math.max(1, Number(srv.sesiones) || 1);
+    const totalRows = sesionesPorPack * qty;
+
+    const rows: PlanItem[] = [];
+    for (let i = 0; i < totalRows; i++) {
+      const esPrimeraDePack = (i % sesionesPorPack) === 0;     // 1ra sesión del pack
+      const packIndex = Math.floor(i / sesionesPorPack) + 1;   // nº de pack (1..qty)
+      const sesionIndex = (i % sesionesPorPack) + 1;           // nº de sesión dentro del pack (1..sesiones)
+
+      rows.push({
+        key: `${srv.id}-${i + 1}-${Date.now()}`,
+        servicioId: srv.id,
+        label: `${srv.nombre} (pack ${packIndex}/${qty}, sesión ${sesionIndex}/${sesionesPorPack})`,
+        // 💡 SOLO la primera sesión de cada pack aporta precio:
+        precio: esPrimeraDePack ? Number(srv.precio) || 0 : 0,
+        // opcionalmente podés inicializar:
+        // fecha: "",
+        // hora: "",
+      });
+    }
+    return rows;
+  }
+
+  const addServicio = (srv: ServicioDTO) => {
+    const qtyPrev = Number(cantidades[srv.id]) || 0;
+    const qtyNew = qtyPrev + 1;
+
+    // filtramos las filas de OTROS servicios
+    const others = plan.filter((row) => row.servicioId !== srv.id);
+
+    // reconstruimos SOLO las filas de este servicio con la nueva cantidad
+    const rebuilt = buildRowsForService(srv, qtyNew);
+
+    setCantidades((q) => ({ ...q, [srv.id]: qtyNew }));
+    setPlan([...others, ...rebuilt]);
+  };
+
+  const rmServicio = (srv: ServicioDTO) => {
+    const qtyPrev = Number(cantidades[srv.id]) || 0;
+    if (qtyPrev <= 0) return;
+
+    const qtyNew = qtyPrev - 1;
+    const others = plan.filter((row) => row.servicioId !== srv.id);
+
+    if (qtyNew === 0) {
+      setCantidades((q) => ({ ...q, [srv.id]: 0 }));
+      setPlan(others);
+      return;
+    }
+
+    const rebuilt = buildRowsForService(srv, qtyNew);
+
+    setCantidades((q) => ({ ...q, [srv.id]: qtyNew }));
+    setPlan([...others, ...rebuilt]);
+  };
+
+  const setFecha = (idx: number, fecha: string) => {
+    setPlan((p) => p.map((row, i) => (i === idx ? { ...row, fecha } : row)));
+  };
+  const setHora = (idx: number, hora: string) => {
+    setPlan((p) => p.map((row, i) => (i === idx ? { ...row, hora } : row)));
+  };
+
+  const readyToConfirm = !!sucursalId && !!barberoId && plan.length > 0 && plan.every((p) => p.fecha && p.hora);
+
+  const confirmar = () => {
+    if (readyToConfirm) setShowCliente(true);
+    else toast("Asigná fecha y hora a todas las sesiones.");
+  };
+  const closeCliente = () => setShowCliente(false);
+
+  // ================== pago (ajustado a 3 campos + toasts + seña) ==================
+  async function pagar(override?: { nombre: string; telefono: string; edad: number }) {
+    const c = override ?? {
+      nombre: (cliente.nombre || "").trim(),
+      telefono: cliente.telefono || "", // Ya viene formateado desde DatosClienteModal
+      edad: Number(cliente.edad),
+    };
+
+    // Validación: el teléfono ya viene con formato internacional (+54...)
+    // Debe tener al menos 12 caracteres (ej: +5493547640108 = 14 chars)
+    if (!c.telefono || c.telefono.length < 12) {
+      toast("Ingresá un teléfono válido.");
+      return;
+    }
+    if (!c.nombre) {
+      toast("Falta el nombre.");
+      return;
+    }
+    if (!Number.isFinite(c.edad) || c.edad <= 0) {
+      toast("Edad inválida.");
+      return;
+    }
+    if (!(plan.length > 0 && plan.every(p => p.fecha && p.hora))) {
+      toast("Asigná fecha y hora a todas las sesiones.");
+      return;
+    }
+    // Evitar duplicados (misma fecha|hora)
+    {
+      const seen = new Set<string>();
+      for (const row of plan) {
+        const key = `${row.fecha}|${row.hora}`;
+        if (seen.has(key)) {
+          toast("Tenés dos sesiones con la misma fecha/hora. Cambiá uno de los horarios.");
+          return;
+        }
+        seen.add(key);
+      }
+    }
+
+    try {
+      const sesion = plan[0];
+      if (!sesion?.fecha || !sesion?.hora) {
+        toast("Asigná fecha y hora a la sesión.");
+        return;
+      }
+
+      // 🆕 Soportar múltiples sesiones
+      const payloadCheckout: any = {
+        sucursalId: Number(sucursalId),
+        barberoId:  Number(barberoId),
+        tipoCorteId: Number(sesion.servicioId),
+        clienteNombre: c.nombre,
+        clienteTelefono: c.telefono, // Ya viene formateado desde DatosClienteModal
+        clienteEdad: c.edad,
+        senia: !!senia,
+        montoTotal: Math.round(totalImporte),
+      };
+
+      // Si hay múltiples sesiones, enviar array de horarios
+      if (plan.length > 1) {
+        payloadCheckout.horarios = plan.map(p => ({
+          fecha: String(p.fecha).trim(),
+          hora: String(p.hora).trim(),
+          servicioId: p.servicioId, // 🔧 Incluir servicioId para cada sesión
+        }));
+      } else {
+        // Sesión única: mantener compatibilidad
+        payloadCheckout.fecha = String(sesion.fecha).trim();
+        payloadCheckout.hora = String(sesion.hora).trim();
+      }
+
+      // sanity check rápida
+      if (
+        !Number.isFinite(payloadCheckout.sucursalId) || payloadCheckout.sucursalId <= 0 ||
+        !Number.isFinite(payloadCheckout.barberoId)  || payloadCheckout.barberoId  <= 0 ||
+        !Number.isFinite(payloadCheckout.tipoCorteId)|| payloadCheckout.tipoCorteId<= 0
+      ) {
+        toast("Falta información del turno (ids).");
+        return;
+      }
+
+      // Validar horarios
+      if (payloadCheckout.horarios) {
+        // Multi-sesión
+        for (const h of payloadCheckout.horarios) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(h.fecha) || !/^\d{2}:\d{2}$/.test(h.hora)) {
+            toast("Formato de fecha/hora inválido.");
+            return;
+          }
+        }
+      } else {
+        // Sesión única
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(payloadCheckout.fecha) || !/^\d{2}:\d{2}$/.test(payloadCheckout.hora)) {
+          toast("Formato de fecha/hora inválido.");
+          return;
+        }
+      }
+
+      // --- CSRF ---
+      await ensureCsrf(RAW_URL);                   // pide cookie CSRF si falta
+      const csrf = getCsrfCookie();               // lee cookie CSRF
+
+      toast("Redirigiendo a Mercado Pago…");
+      const chk = await fetch(`${RAW_URL}/pagos/checkout`, {
+        method: "POST",
+        credentials: "include",                   // MUY IMPORTANTE para mandar cookies
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrf,                   // double-submit header
+        },
+        // ❌ SIN X-CSRF-Token
+        body: JSON.stringify(payloadCheckout),
+      });
+
+      if (!chk.ok) {
+        console.error("Error /pagos/checkout:", await chk.text());
+        toast("Error al iniciar el pago.");
+        return;
+      }
+
+      const data = await chk.json();
+      const initPoint = data?.init_point || data?.initPoint || data?.url;
+      if (!initPoint) {
+        toast("Checkout no disponible.");
+        return;
+      }
+      window.location.href = initPoint;
+
+    } catch (err: any) {
+      console.error(err);
+      toast("Error al procesar el pago.");
+    }
+  }
+
+
+  // ==== UI ====
+  const [showCliente, setShowCliente] = useState(false);
+
+  // cargar servicios (igual que tenías)
+  useEffect(() => {
+    (async () => {
+      try {
+        setServicios(await PublicApi.servicios());
+      } catch {
+        // silencioso
+      }
+    })();
+  }, []);
+
+  // ========= Render =========
+  return (
+    <div className="max-w-6xl mx-auto p-4 grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
+      {introVisible && !sucursalId && (
+        <IntroSucursales
+          onSelect={(id) => {
+            setSucursalId(id);
+            setIntroVisible(false);
+          }}
+        />
+      )}
+
+      {/* Col principal */}
+      <div className="space-y-6">
+        {err && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700">{err}</div>
+        )}
+
+        {/* 1) Sucursal */}
+        <Section title="1) Elegí una sucursal">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {sucursales.map((s) => {
+              const active = s.id === sucursalId;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setSucursalId(s.id);
+                    setBarberoId(null);
+                    setCantidades({});
+                    setPlan([]);
+                  }}
+                  className={`text-left rounded-2xl border p-3 hover:shadow ${
+                    active ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-14 w-14 rounded-xl overflow-hidden bg-slate-100 border">
+                      {s.fotoUrl ? (
+                        <img src={resolveUrl(s.fotoUrl)} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full grid place-items-center text-xs text-slate-500">Sucursal</div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-semibold">{s.nombre}</div>
+                      <div className="text-xs text-slate-500">{s.direccion}</div>
+                      {/* acceso directo a Google Maps */}
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.direccion || s.nombre)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-indigo-600 underline"
+                      >
+                        Cómo llegar
+                      </a>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+            {sucursalId && sucursales.length === 0 && (
+              <div className="text-sm text-slate-500">Sin sucursales.</div>
+            )}
+          </div>
+        </Section>
+
+        {/* 2) Barbero */}
+        <Section title="2) Elegí tu barbero" disabled={!sucursalId}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {barberos.map((b) => {
+              const active = b.id === barberoId;
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => {
+                    setBarberoId(b.id);
+                    setCantidades({});
+                    setPlan([]);
+                  }}
+                  className={`text-left rounded-2xl border p-3 hover:shadow ${
+                    active ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {b.fotoUrl ? (
+                      <img
+                        src={resolveUrl(b.fotoUrl)!}
+                        alt={b.nombre}
+                        className="h-14 w-14 rounded-full object-cover border shrink-0"
+                      />
+                    ) : (
+                      <div className="h-14 w-14 rounded-full bg-slate-200 grid place-items-center text-xs text-slate-600 border shrink-0">
+                        Sin foto
+                      </div>
+                    )}
+                    <div className="font-semibold">{b.nombre}</div>
+                  </div>
+                </button>
+              );
+            })}
+            {sucursalId && barberos.length === 0 && (
+              <div className="text-sm text-slate-500">Sin barberos.</div>
+            )}
+          </div>
+        </Section>
+
+        {/* 3) Servicios (cantidad) */}
+        <Section title="3) Elegí tus servicios" disabled={!barberoId}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {servicios.map((s) => {
+              const qty = cantidades[s.id] || 0;
+              const sesiones = s.sesiones && s.sesiones > 0 ? s.sesiones : 1;
+              return (
+                <div
+                  key={s.id}
+                  className={`rounded-2xl border p-3 ${
+                    qty > 0 ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold">{s.nombre}</div>
+                    <div className="text-slate-500">${s.precio}</div>
+                  </div>
+                  {s.descripcion && <div className="text-xs text-slate-500 mt-1">{s.descripcion}</div>}
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <button className="rounded-lg border px-3 py-1" onClick={() => rmServicio(s)} disabled={qty <= 0}>
+                      −
+                    </button>
+                    <div className="w-10 text-center">{qty}</div>
+                    <button className="rounded-lg border px-3 py-1" onClick={() => addServicio(s)}>
+                      +
+                    </button>
+                  </div>
+
+                  {qty > 0 && (
+                    <div className="mt-2 text-xs text-slate-500">
+                      {sesiones} sesión{sesiones !== 1 ? "es" : ""} × {qty} = {sesiones * qty} turnos
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+
+        {/* 4) Calendario por sesión */}
+        <Section title="4) Elegí fecha y hora" disabled={!barberoId || plan.length === 0}>
+          <div className="grid gap-4">
+            {plan.map((row, idx) => {
+              const days = monthDaysForRow(row.key);
+              const selectedDate = row.fecha ? dateFromISOLocal(row.fecha) : null;
+
+              // construir rango horario para el día seleccionado 
+              const dd  = selectedDate?.getDay() ?? 0; // 0=Dom..6=Sáb
+              const dow = dd === 0 ? 7 : dd;
+              const ranges = weekRanges[dow] || []; // [{inicio, fin}] (T1/T2)
+              const hoursForDay = ranges.flatMap(r => rangeTimes(r.inicio, r.fin));
+              const horasDisponibles = hoursForDay; // ya vienen limitadas al/los tramos reales
+
+              
+              // Partir de las horas construidas desde T1/T2
+              let visibleTimes = Array.from(new Set(horasDisponibles));
+
+              // Aseguramos sólo el inicio, jamás el fin (exclusivo)
+              ranges.forEach((r) => {
+                if (r?.inicio && !visibleTimes.includes(r.inicio)) visibleTimes.push(r.inicio);
+              });
+              visibleTimes.sort((a, b) => a.localeCompare(b));
+
+
+
+              // slots tomados por otras sesiones (evitar solapamiento)
+              const takenSlots = new Set(plan.filter((_, i) => i !== idx).map((p) => `${p.fecha}|${p.hora}`));
+
+              return (
+                <div key={row.key} className="rounded-xl border p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{row.label}</div>
+                    <span className="text-xs text-slate-500">
+                      {row.fecha ? (
+                        <>
+                          {dateFromISOLocal(row.fecha).toLocaleDateString("es-AR", {
+                            weekday: "short",
+                            day: "2-digit",
+                            month: "short",
+                          })}
+                          {row.hora ? <> — <b>{row.hora} hs</b></> : null}
+                        </>
+                      ) : null}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
+                    {/* Columna de fechas */}
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-xs text-slate-500">{labelMesForRow(row.key)}</div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="rounded-lg border px-2 py-1"
+                            onClick={() => gotoPrevMonthRow(row.key)}
+                            disabled={offsetForRow(row.key) === 0}
+                            title="Mes anterior"
+                          >
+                            ‹
+                          </button>
+                          <button
+                            className="rounded-lg border px-2 py-1"
+                            onClick={() => gotoNextMonthRow(row.key)}
+                            title="Mes siguiente"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {days.map((d) => {
+                          const active = row.fecha === d.iso;
+                          const takenInDay = new Set(
+                            plan.filter((p) => p.fecha === d.iso && p.hora).map((p) => p.hora!)
+                          );
+                          return (
+                            <button
+                              key={d.iso}
+                              className={`rounded-lg border px-3 py-2 text-left ${
+                                active ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-200"
+                              }`}
+                              onClick={async () => {
+                                setFecha(idx, d.iso);
+                                setHora(idx, ""); // reset
+
+                                await cargarDisponibilidadFecha(d.iso);
+                              }}
+                            >
+                              <div className="text-xs">{d.label}</div>
+                              {row.fecha === d.iso && (
+                                <div className="mt-1 text-[11px] text-slate-500">
+                                  {takenInDay.size} turno{takenInDay.size !== 1 ? "s" : ""} ya asignado{takenInDay.size !== 1 ? "s" : ""}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Columna de horas */}
+                    <div>
+                      <div className="text-xs text-slate-500 mb-1">Horarios</div>
+                      {/* si no hay fecha elegida aún */}
+                      {!row.fecha && <div className="text-sm text-slate-500">Elegí un día primero.</div>}
+                      {row.fecha && (
+                        <div className="flex flex-wrap gap-2">
+                          {(() => {
+                            const setDisponibles = new Set(
+                              row.fecha ? (horasDisponiblesByDate[row.fecha] ?? horasDisponibles) : horasDisponibles
+                            );
+
+                            return (
+                              <div className="flex flex-wrap gap-2">
+                                {visibleTimes.map((time) => {
+                                  const active = time === row.hora;
+
+                                  const notAvailable = !setDisponibles.has(time);
+
+                                  const myKey = `${row.fecha}|${time}`;
+                                  const isTakenByOther =
+                                    takenSlots.has(myKey) &&
+                                    !(row.fecha && row.hora && `${row.fecha}|${row.hora}` === myKey);
+
+                                  const disabled = notAvailable || isTakenByOther;
+
+                                  return (
+                                    <button
+                                      key={time}
+                                      disabled={disabled}
+                                      onClick={() => setHora(idx, time)}
+                                      title={
+                                        isTakenByOther
+                                          ? "Horario ocupado por otra sesión"
+                                          : notAvailable
+                                          ? "Bloqueado / no disponible"
+                                          : ""
+                                      }
+                                      className={`rounded-lg border px-2 py-1 text-sm ${
+                                        active
+                                          ? "border-indigo-500 ring-2 ring-indigo-200"
+                                          : disabled
+                                          ? "border-slate-200 text-slate-400"
+                                          : "border-slate-300 hover:border-slate-500"
+                                      }`}
+                                    >
+                                      {time}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+      </div>
+
+      {/* Col lateral: resumen + datos cliente */}
+      <aside className="space-y-4">
+        <Section title="Resumen">
+          <ul className="text-sm">
+            <li className="mb-1">
+              <span className="text-slate-500">Sucursal:</span>{" "}
+              <b>{sucursales.find((s) => s.id === sucursalId)?.nombre || "-"}</b>
+            </li>
+            <li className="mb-1">
+              <span className="text-slate-500">Barbero:</span>{" "}
+              <b>{barberos.find((b) => b.id === barberoId)?.nombre || "-"}</b>
+            </li>
+            <li className="mb-1">
+              <span className="text-slate-500">Servicios:</span>
+              {Object.entries(cantidades)
+                .filter(([, q]) => q > 0)
+                .map(([sid, q]) => {
+                  const s = servicios.find((x) => x.id === Number(sid));
+                  return (
+                    <div key={sid} className="ml-1">
+                      • {s?.nombre} × {q}
+                    </div>
+                  );
+                })}
+            </li>
+            <li className="mb-1">
+              <span className="text-slate-500">Sesiones:</span>
+              <ul className="ml-1">
+                {plan.map((p, i) => (
+                  <li key={p.key}>
+                    #{i + 1} —{" "}
+                    {p.fecha && p.hora ? (
+                      <b>
+                        {dateFromISOLocal(p.fecha).toLocaleDateString("es-AR", {
+                          weekday: "short",
+                          day: "2-digit",
+                          month: "short",
+                        })}
+                        , {p.hora} hs
+                      </b>
+                    ) : (
+                      <span className="text-slate-400">sin asignar</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          </ul>
+          <div className="border-t my-3" />
+          <div className="flex items-center justify-between">
+            <div className="text-slate-500">Total</div>
+            <div className="text-xl font-semibold">${totalImporte}</div>
+          </div>
+
+          {/* Toggle seña 50% */}
+          <div className="mt-3 flex items-center gap-4 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <input type="radio" checked={!senia} onChange={() => setSenia(false)} />
+              <span>Pago total</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="radio" checked={senia} onChange={() => setSenia(true)} />
+              <span>Seña 50%</span>
+            </label>
+          </div>
+          {senia && (
+            <div className="text-xs text-slate-600 mt-1">
+              Abonás ahora <b>${Math.round(totalImporte / 2)}</b>. El barbero cobrará el resto al finalizar.
+            </div>
+          )}
+
+          <button
+            disabled={!readyToConfirm}
+            onClick={confirmar}
+            className="mt-4 w-full rounded-xl bg-indigo-600 px-4 py-2 text-white disabled:bg-slate-300"
+          >
+            Confirmar y pagar
+          </button>
+        </Section>
+      </aside>
+      <DatosClienteModal
+        open={showCliente}
+        onCancel={closeCliente}
+        onConfirm={(datos) => {
+          // El teléfono ya viene formateado desde DatosClienteModal (+549...)
+          const clean = {
+            nombre: datos.nombre.trim(),
+            telefono: datos.telefono, // Ya tiene formato internacional
+            edad: Number(datos.edad),
+          };
+
+          // actualizá tu estado (si lo necesitás para mostrar en UI)
+          setCliente({
+            nombre: clean.nombre,
+            telefono: clean.telefono,
+            edad: String(clean.edad),
+          });
+
+          setShowCliente(false);
+
+          // llamá a pagar con los datos limpios para evitar carreras con setState
+          pagar(clean); // <- ver firma abajo
+        }}
+      />
+
+    </div>
+  );
+}
+
+/** ====== utilidades locales del componente ====== */
+
+function Section({
+  title,
+  children,
+  disabled,
+}: {
+  title: string;
+  children: React.ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <section className={`rounded-2xl border p-4 bg-white shadow-sm ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+      <h2 className="font-semibold mb-3">{title}</h2>
+      {children}
+    </section>
+  );
+}
