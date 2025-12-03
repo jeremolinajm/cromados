@@ -47,7 +47,7 @@ export default function DatosClienteModal({ open, onCancel, onConfirm }: Props) 
 
           <label className="block text-sm font-medium mb-1.5">Nombre</label>
           <input
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 mb-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 mb-3 text-base focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Nombre y apellido"
@@ -57,7 +57,7 @@ export default function DatosClienteModal({ open, onCancel, onConfirm }: Props) 
           <div className="flex gap-2 mb-3">
             {/* Selector de código de país */}
             <select
-              className="w-[110px] flex-shrink-0 rounded-lg border border-gray-300 px-2 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+              className="w-[110px] flex-shrink-0 rounded-lg border border-gray-300 px-2 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent bg-white"
               value={countryCode}
               onChange={(e) => setCountryCode(e.target.value)}
             >
@@ -74,7 +74,7 @@ export default function DatosClienteModal({ open, onCancel, onConfirm }: Props) 
             </select>
             {/* Input de número */}
             <input
-              className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
               placeholder={countryCode === "+54" ? "11 1234 5678" : "número"}
@@ -85,7 +85,7 @@ export default function DatosClienteModal({ open, onCancel, onConfirm }: Props) 
           <label className="block text-sm font-medium mb-1.5">Edad</label>
           <input
             type="number"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 mb-4 sm:mb-5 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 mb-4 sm:mb-5 text-base focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent"
             value={edad}
             onChange={(e) => setEdad(e.target.value === "" ? "" : Number(e.target.value))}
             placeholder="18"

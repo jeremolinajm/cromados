@@ -532,9 +532,9 @@ export default function Turnos() {
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full font-semibold transition-all ${
                     step === s
-                      ? "bg-indigo-600 text-white ring-4 ring-indigo-200"
+                      ? "bg-fuchsia-600 text-white ring-4 ring-fuchsia-200"
                       : step > s
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-fuchsia-600 text-white"
                       : "bg-slate-300 text-slate-600"
                   }`}
                 >
@@ -543,7 +543,7 @@ export default function Turnos() {
                 {idx < totalSteps - 1 && (
                   <div
                     className={`h-1 w-8 sm:w-16 transition-all ${
-                      step > s ? "bg-indigo-600" : "bg-slate-300"
+                      step > s ? "bg-fuchsia-600" : "bg-slate-300"
                     }`}
                   />
                 )}
@@ -570,8 +570,8 @@ export default function Turnos() {
                     key={s.id}
                     className={`rounded-lg border p-4 text-left transition-all ${
                       sucursalId === s.id
-                        ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500"
-                        : "border-slate-300 hover:border-indigo-300"
+                        ? "border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-500"
+                        : "border-slate-300 hover:border-fuchsia-300"
                     }`}
                     onClick={() => setSucursalId(s.id)}
                   >
@@ -583,7 +583,7 @@ export default function Turnos() {
               {sucursalId && (
                 <div className="mt-6">
                   <button
-                    className="w-full rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-indigo-700 transition-all"
+                    className="w-full rounded-lg bg-fuchsia-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-fuchsia-700 transition-all"
                     onClick={irSiguiente}
                   >
                     Siguiente
@@ -602,8 +602,8 @@ export default function Turnos() {
                       key={b.id}
                       className={`rounded-lg border p-4 text-left transition-all ${
                         barberoId === b.id
-                          ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500"
-                          : "border-slate-300 hover:border-indigo-300"
+                          ? "border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-500"
+                          : "border-slate-300 hover:border-fuchsia-300"
                       }`}
                       onClick={() => setBarberoId(b.id)}
                     >
@@ -627,7 +627,7 @@ export default function Turnos() {
                   </button>
                   {barberoId && (
                     <button
-                      className="flex-1 rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-indigo-700 transition-all"
+                      className="flex-1 rounded-lg bg-fuchsia-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-fuchsia-700 transition-all"
                       onClick={irSiguiente}
                     >
                       Siguiente
@@ -646,8 +646,8 @@ export default function Turnos() {
                       key={s.id}
                       className={`rounded-lg border p-4 text-left transition-all ${
                         servicioPrincipalId === s.id
-                          ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500"
-                          : "border-slate-300 hover:border-indigo-300"
+                          ? "border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-500"
+                          : "border-slate-300 hover:border-fuchsia-300"
                       }`}
                       onClick={() => setServicioPrincipalId(s.id)}
                     >
@@ -658,7 +658,7 @@ export default function Turnos() {
                             <div className="text-sm text-slate-600">{s.descripcion}</div>
                           )}
                           {(s.sesiones || 1) > 1 && (
-                            <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-fuchsia-100 px-2 py-0.5 text-xs font-medium text-fuchsia-700">
                               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
@@ -666,7 +666,7 @@ export default function Turnos() {
                             </div>
                           )}
                         </div>
-                        <div className="text-lg font-bold text-indigo-600">${s.precio}</div>
+                        <div className="text-lg font-bold text-fuchsia-600">${s.precio}</div>
                       </div>
                     </button>
                   ))}
@@ -680,7 +680,7 @@ export default function Turnos() {
                   </button>
                   {servicioPrincipalId && (
                     <button
-                      className="flex-1 rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-indigo-700 transition-all"
+                      className="flex-1 rounded-lg bg-fuchsia-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-fuchsia-700 transition-all"
                       onClick={irSiguiente}
                     >
                       Siguiente
@@ -736,7 +736,7 @@ export default function Turnos() {
                         <div className="text-sm font-medium text-slate-700">{labelMes}</div>
                         <div className="flex gap-2">
                           <button
-                            className="rounded-lg border-2 border-slate-300 px-4 py-2 text-xl font-bold text-slate-700 hover:bg-slate-100 hover:border-indigo-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="rounded-lg border-2 border-slate-300 px-4 py-2 text-xl font-bold text-slate-700 hover:bg-slate-100 hover:border-fuchsia-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                             onClick={() => setMonthOffset(Math.max(0, monthOffset - 1))}
                             disabled={monthOffset === 0}
                             aria-label="Mes anterior"
@@ -744,7 +744,7 @@ export default function Turnos() {
                             ‹
                           </button>
                           <button
-                            className="rounded-lg border-2 border-slate-300 px-4 py-2 text-xl font-bold text-slate-700 hover:bg-slate-100 hover:border-indigo-400 transition-all"
+                            className="rounded-lg border-2 border-slate-300 px-4 py-2 text-xl font-bold text-slate-700 hover:bg-slate-100 hover:border-fuchsia-400 transition-all"
                             onClick={() => setMonthOffset(monthOffset + 1)}
                             aria-label="Mes siguiente"
                           >
@@ -758,8 +758,8 @@ export default function Turnos() {
                             key={d.iso}
                             className={`rounded-lg border p-2 text-sm ${
                               sesion.fecha === d.iso
-                                ? "border-indigo-500 bg-indigo-500 text-white"
-                                : "border-slate-300 hover:border-indigo-300"
+                                ? "border-fuchsia-500 bg-fuchsia-500 text-white"
+                                : "border-slate-300 hover:border-fuchsia-300"
                             }`}
                             onClick={() => selectFechaSesion(sesionIdx, d.iso)}
                           >
@@ -778,8 +778,8 @@ export default function Turnos() {
                               key={h}
                               className={`rounded-lg border p-2 text-sm ${
                                 sesion.hora === h
-                                  ? "border-indigo-500 bg-indigo-500 text-white"
-                                  : "border-slate-300 hover:border-indigo-300"
+                                  ? "border-fuchsia-500 bg-fuchsia-500 text-white"
+                                  : "border-slate-300 hover:border-fuchsia-300"
                               }`}
                               onClick={() => selectHoraSesion(sesionIdx, h)}
                             >
@@ -800,7 +800,7 @@ export default function Turnos() {
                     </button>
                     {sesion.fecha && sesion.hora && (
                       <button
-                        className="flex-1 rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-indigo-700 transition-all"
+                        className="flex-1 rounded-lg bg-fuchsia-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-fuchsia-700 transition-all"
                         onClick={irSiguiente}
                       >
                         {sesionIdx === numSesiones - 1 ? "Finalizar" : "Siguiente"}
@@ -836,7 +836,7 @@ export default function Turnos() {
                   <div>
                     <div className="font-medium text-slate-500">Servicio:</div>
                     <div>{servicioPrincipal.nombre}</div>
-                    <div className="text-indigo-600">${servicioPrincipal.precio}</div>
+                    <div className="text-fuchsia-600">${servicioPrincipal.precio}</div>
                   </div>
                 )}
 
@@ -880,7 +880,7 @@ export default function Turnos() {
               <div className="mt-4 border-t pt-4">
                 <div className="flex justify-between text-lg font-bold mb-2">
                   <span>Total:</span>
-                  <span className="text-indigo-600">${montoAPagar}</span>
+                  <span className="text-fuchsia-600">${montoAPagar}</span>
                 </div>
 
                 {senia && (
@@ -889,7 +889,7 @@ export default function Turnos() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-indigo-300 transition-all mb-3">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-fuchsia-300 transition-all mb-3">
                   <label htmlFor="senia" className="text-sm font-medium cursor-pointer select-none flex-1">
                     Pagar seña del 50%
                   </label>
@@ -898,8 +898,8 @@ export default function Turnos() {
                     role="switch"
                     aria-checked={senia}
                     onClick={() => setSenia(!senia)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                      senia ? 'bg-indigo-600' : 'bg-slate-300'
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:ring-offset-2 ${
+                      senia ? 'bg-fuchsia-600' : 'bg-slate-300'
                     }`}
                   >
                     <span

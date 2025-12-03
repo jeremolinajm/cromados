@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BASE, RAW_URL, resolveUrl } from "../lib/adminApi";
+import OptimizedImage from "../components/OptimizedImage";
 
 type Barbero = {
   id: number;
@@ -81,7 +82,7 @@ export default function Barberos() {
             onClick={() => setFiltro("all")}
             className={`px-4 py-2 rounded-full font-medium text-sm transition-all duration-200 ${
               filtro === "all"
-                ? "bg-indigo-600 text-white shadow-md"
+                ? "bg-fuchsia-600 text-white shadow-md"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
@@ -93,7 +94,7 @@ export default function Barberos() {
               onClick={() => setFiltro(s.id)}
               className={`px-4 py-2 rounded-full font-medium text-sm transition-all duration-200 ${
                 filtro === s.id
-                  ? "bg-indigo-600 text-white shadow-md"
+                  ? "bg-fuchsia-600 text-white shadow-md"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
@@ -165,10 +166,13 @@ function CardBarbero({
       {/* En móvil: columna (img arriba). Desde sm: fila (img izquierda). */}
       <div className="flex flex-col items-center gap-4">
         {b.fotoUrl ? (
-          <img
+          <OptimizedImage
             src={resolveUrl(b.fotoUrl)!}
-            alt={b.nombre}
+            alt={`Foto de ${b.nombre}`}
             className="h-28 w-28 md:h-32 md:w-32 rounded-full object-cover border shrink-0"
+            width={128}
+            height={128}
+            loading="lazy"
           />
         ) : (
           <div className="h-28 w-28 md:h-32 md:w-32 rounded-full bg-slate-200 grid place-items-center text-xs text-slate-600 border shrink-0">
@@ -184,7 +188,7 @@ function CardBarbero({
                 href={b.instagram}
                 target="_blank"
                 rel="noreferrer"
-                className="text-indigo-600 hover:underline"
+                className="text-fuchsia-600 hover:underline"
               >
                 Instagram
               </a>
@@ -194,7 +198,7 @@ function CardBarbero({
                 href={b.facebook}
                 target="_blank"
                 rel="noreferrer"
-                className="text-indigo-600 hover:underline"
+                className="text-fuchsia-600 hover:underline"
               >
                 Facebook
               </a>

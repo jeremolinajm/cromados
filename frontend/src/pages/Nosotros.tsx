@@ -5,7 +5,7 @@ export default function Nosotros() {
       {/* Hero corto */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-6 sm:pb-8 text-center">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-          Conocé <span className="text-indigo-600">Cromados</span>
+          Conocé <span className="text-fuchsia-600">Cromados</span>
         </h1>
         <p className="mt-3 sm:mt-4 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto px-2">
           Una barbería de barrio con corazón, detalle y oficio. Un lugar pensado para disfrutar el momento.
@@ -85,7 +85,7 @@ export default function Nosotros() {
 
       {/* Franja de texto (opcional) */}
       <section className="px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto rounded-2xl sm:rounded-3xl bg-indigo-50 border border-indigo-100 p-5 sm:p-6 text-center">
+        <div className="max-w-4xl mx-auto rounded-2xl sm:rounded-3xl bg-fuchsia-50 border border-fuchsia-100 p-5 sm:p-6 text-center">
           <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
             "Cromados es nuestro lugar en el mundo. Queremos que también sea el tuyo cada vez que te sientes en la silla."
           </p>
@@ -100,7 +100,7 @@ export default function Nosotros() {
         </p>
         <a
           href="/turnos"
-          className="inline-block rounded-xl bg-indigo-600 px-6 py-3 text-sm sm:text-base text-white font-semibold hover:bg-indigo-700 transition"
+          className="inline-block rounded-xl bg-fuchsia-600 px-6 py-3 text-sm sm:text-base text-white font-semibold hover:bg-fuchsia-700 transition"
         >
           Reservar turno
         </a>

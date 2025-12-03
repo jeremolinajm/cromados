@@ -3,6 +3,7 @@ import { useToast } from "../components/Toast";
 import { endpoints } from "../lib/endpoints";
 import { GET } from "../lib/http";
 import { resolveUrl } from "../lib/adminApi";
+import OptimizedImage from "./OptimizedImage";
 
 type Sucursal = { id: number; nombre: string; direccion: string; fotoUrl?: string | null };
 
@@ -41,14 +42,16 @@ export default function IntroSucursales({ onSelect }: Props) {
                   {/* imagen grande 16:9 */}
                   <div className="aspect-[16/9] bg-slate-100">
                     {s.fotoUrl ? (
-                      <img
+                      <OptimizedImage
                         src={resolveUrl(s.fotoUrl)}
                         alt={`Foto de ${s.nombre}`}
                         className="h-full w-full object-cover"
+                        width={1200}
+                        height={675}
+                        loading="lazy"
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).src = "/placeholder-wide.jpg";
                         }}
-                        loading="lazy"
                       />
                     ) : (
                       <div className="h-full w-full object-cover bg-slate-200 grid place-items-center text-s text-slate-600 border shrink-0">
@@ -73,7 +76,7 @@ export default function IntroSucursales({ onSelect }: Props) {
                         Cómo llegar
                       </a>
                       <button
-                        className="rounded-lg bg-indigo-600 px-3 py-2 text-white"
+                        className="rounded-lg bg-fuchsia-600 px-3 py-2 text-white"
                         onClick={() => onSelect(s.id)}
                       >
                         Elegir esta sucursal

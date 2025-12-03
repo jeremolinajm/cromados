@@ -312,7 +312,7 @@ export default function TurnosAdmin() {
           <button
             onClick={exportCsv}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2.5 text-sm font-medium text-white hover:from-indigo-700 hover:to-indigo-800 shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 px-4 py-2.5 text-sm font-medium text-white hover:from-fuchsia-700 hover:to-fuchsia-800 shadow-md hover:shadow-lg transition-all disabled:opacity-50"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -334,7 +334,7 @@ export default function TurnosAdmin() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Buscar</label>
             <input
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 transition-all"
               placeholder="Buscar por ID o cliente…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -343,7 +343,7 @@ export default function TurnosAdmin() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Barbero</label>
             <select
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 transition-all"
               value={barberoId}
               onChange={(e) => setBarberoId(e.target.value)}
             >
@@ -359,7 +359,7 @@ export default function TurnosAdmin() {
             <label className="block text-sm font-medium text-slate-700 mb-2">Desde</label>
             <input
               type="date"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 transition-all"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
             />
@@ -368,7 +368,7 @@ export default function TurnosAdmin() {
             <label className="block text-sm font-medium text-slate-700 mb-2">Hasta</label>
             <input
               type="date"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 transition-all"
               value={to}
               onChange={(e) => setTo(e.target.value)}
             />
@@ -384,7 +384,7 @@ export default function TurnosAdmin() {
             id="mostrarBloqueados"
             checked={mostrarBloqueados}
             onChange={(e) => setMostrarBloqueados(e.target.checked)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            className="rounded border-slate-300 text-fuchsia-600 focus:ring-fuchsia-500"
           />
           <label htmlFor="mostrarBloqueados" className="text-sm text-slate-600 cursor-pointer select-none">
             Mostrar turnos bloqueados desde Telegram
@@ -397,7 +397,7 @@ export default function TurnosAdmin() {
             id="mostrarPasados"
             checked={mostrarPasados}
             onChange={(e) => setMostrarPasados(e.target.checked)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            className="rounded border-slate-300 text-fuchsia-600 focus:ring-fuchsia-500"
           />
           <label htmlFor="mostrarPasados" className="text-sm text-slate-600 cursor-pointer select-none">
             Mostrar turnos pasados/históricos
@@ -442,7 +442,7 @@ export default function TurnosAdmin() {
                     <span className="font-medium text-slate-900">{t.clienteNombre}</span>
                     {t.grupoId && (
                       <span
-                        className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700"
+                        className="inline-flex items-center gap-1 rounded-full bg-fuchsia-100 px-2 py-0.5 text-xs font-medium text-fuchsia-700"
                         title={`Grupo multi-sesión: ${t.grupoId.substring(0, 8)}...`}
                       >
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -463,7 +463,7 @@ export default function TurnosAdmin() {
                     <div>💈 {t.barberoNombre || barberoName[t.barberoId] || `Barbero #${t.barberoId}`}</div>
                     <div>✂️ {t.servicioNombre || tipoCorteName[t.tipoCorteId] || `Servicio #${t.tipoCorteId}`}</div>
                     {t.adicionales && t.adicionales.trim() !== "" && (
-                      <div className="text-indigo-600">+ {t.adicionales}</div>
+                      <div className="text-fuchsia-600">+ {t.adicionales}</div>
                     )}
                   </div>
 
@@ -474,7 +474,7 @@ export default function TurnosAdmin() {
                       {(t.montoPagado ?? 0) > 0 ? (
                         <span className="font-semibold text-slate-900">${t.montoPagado}</span>
                       ) : t.grupoId ? (
-                        <span className="text-indigo-600 italic">Ver principal</span>
+                        <span className="text-fuchsia-600 italic">Ver principal</span>
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}
@@ -556,7 +556,7 @@ export default function TurnosAdmin() {
                       <div className="font-medium text-slate-900">{t.clienteNombre}</div>
                       {t.grupoId && (
                         <span
-                          className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700"
+                          className="inline-flex items-center gap-1 rounded-full bg-fuchsia-100 px-2 py-0.5 text-xs font-medium text-fuchsia-700"
                           title={`Grupo multi-sesión: ${t.grupoId.substring(0, 8)}...`}
                         >
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -572,7 +572,7 @@ export default function TurnosAdmin() {
                   <td className="px-3 py-3 text-slate-700">{t.servicioNombre || tipoCorteName[t.tipoCorteId] || t.tipoCorteId}</td>
                   <td className="px-3 py-3 text-slate-700">
                     {t.adicionales && t.adicionales.trim() !== "" ? (
-                      <span className="text-indigo-600 text-xs">+ {t.adicionales}</span>
+                      <span className="text-fuchsia-600 text-xs">+ {t.adicionales}</span>
                     ) : (
                       <span className="text-slate-400">-</span>
                     )}
@@ -584,7 +584,7 @@ export default function TurnosAdmin() {
                     {(t.montoPagado ?? 0) > 0 ? (
                       <span className="font-semibold text-slate-900">${t.montoPagado}</span>
                     ) : t.grupoId ? (
-                      <span className="text-xs text-indigo-600 italic">Ver turno principal</span>
+                      <span className="text-xs text-fuchsia-600 italic">Ver turno principal</span>
                     ) : (
                       <span className="text-slate-400">-</span>
                     )}
@@ -602,7 +602,7 @@ export default function TurnosAdmin() {
                     {(t.montoEfectivo ?? 0) > 0 ? (
                       <span className="font-semibold text-slate-900">${t.montoEfectivo}</span>
                     ) : t.grupoId && (t.montoPagado ?? 0) === 0 ? (
-                      <span className="text-xs text-indigo-600 italic">Ver turno principal</span>
+                      <span className="text-xs text-fuchsia-600 italic">Ver turno principal</span>
                     ) : (
                       <span className="text-slate-400">-</span>
                     )}

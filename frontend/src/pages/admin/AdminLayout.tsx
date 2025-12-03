@@ -10,7 +10,7 @@ export default function AdminLayout() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
       isActive
-        ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/30"
+        ? "bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 text-white shadow-lg shadow-fuchsia-500/30"
         : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
     }`;
 

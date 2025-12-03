@@ -48,7 +48,7 @@ export default function Navbar() {
             ))}
             <NavLink
               to="/turnos"
-              className="ml-1 px-5 py-2 rounded-full font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-300 text-sm shadow-lg shadow-indigo-500/30"
+              className="ml-1 px-5 py-2 rounded-full font-semibold bg-fuchsia-600 hover:bg-fuchsia-700 text-white transition-all duration-300 text-sm shadow-lg shadow-fuchsia-500/30"
             >
               Reservar Turno
             </NavLink>
@@ -144,7 +144,7 @@ export default function Navbar() {
                   <NavLink
                     to="/turnos"
                     onClick={() => setOpen(false)}
-                    className="block px-6 py-3 rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-700 text-white text-center shadow-lg shadow-indigo-500/30 transition-all duration-300"
+                    className="block px-6 py-3 rounded-xl font-semibold bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-center shadow-lg shadow-fuchsia-500/30 transition-all duration-300"
                   >
                     Reservar Turno
                   </NavLink>

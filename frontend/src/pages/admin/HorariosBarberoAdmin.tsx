@@ -286,7 +286,7 @@ export default function HorariosBarberoAdmin() {
           </h1>
           {selected && (
             <p className="text-sm text-slate-600 mt-1">
-              Editando: <span className="font-semibold text-indigo-600">{selected.nombre}</span>
+              Editando: <span className="font-semibold text-fuchsia-600">{selected.nombre}</span>
             </p>
           )}
         </div>
@@ -323,8 +323,8 @@ export default function HorariosBarberoAdmin() {
 
       {loading && (
         <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-slate-200/50 p-12 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 mb-3">
-            <svg className="animate-spin w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-fuchsia-100 mb-3">
+            <svg className="animate-spin w-6 h-6 text-fuchsia-600" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -442,7 +442,7 @@ export default function HorariosBarberoAdmin() {
                             <>
                               {dirty[d.n] && (
                                 <button
-                                  className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-2 py-1.5 text-xs font-medium text-white hover:from-indigo-700 hover:to-indigo-800 shadow-md hover:shadow-lg transition-all whitespace-nowrap"
+                                  className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 px-2 py-1.5 text-xs font-medium text-white hover:from-fuchsia-700 hover:to-fuchsia-800 shadow-md hover:shadow-lg transition-all whitespace-nowrap"
                                   onClick={() => guardarDia(d.n)}
                                 >
                                   <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

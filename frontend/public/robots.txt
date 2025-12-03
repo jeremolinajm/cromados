@@ -1,0 +1,10 @@
+# robots.txt para cromados.uno
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://cromados.uno/sitemap.xml
+
+# Bloquear rutas administrativas
+Disallow: /admin/
+Disallow: /admin/*

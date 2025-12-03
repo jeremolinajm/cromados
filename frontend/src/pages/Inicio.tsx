@@ -14,8 +14,8 @@ export default function Inicio() {
         loop
         playsInline
         poster="/img/no.jpg"
-        preload="auto"
-        aria-hidden
+        preload="metadata"
+        aria-hidden="true"
       />
 
       {/* OVERLAYS: oscurecer + degradado para mejor legibilidad */}
@@ -25,7 +25,7 @@ export default function Inicio() {
       {/* CONTENIDO */}
       <div className="relative z-10 text-center text-white px-4">
         <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-          Bienvenidos a <span className="text-indigo-400">Cromados</span>
+          Bienvenidos a <span className="text-fuchsia-400">Cromados</span>
         </h1>
         <p className="text-lg text-white/90 max-w-2xl mx-auto mb-8">
           Tu estilo, nuestro compromiso. Reservá tu turno fácil y rápido.
@@ -33,7 +33,7 @@ export default function Inicio() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             to="/turnos"
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-semibold shadow-lg transition-all"
+            className="px-6 py-3 bg-fuchsia-600 hover:bg-fuchsia-700 rounded-xl font-semibold shadow-lg transition-all"
           >
             Reservar Turno
           </Link>

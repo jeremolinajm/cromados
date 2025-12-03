@@ -148,20 +148,20 @@ export default function CalculadoraPagos() {
           </div>
           <button
             onClick={setHoy}
-            className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm text-indigo-700 hover:bg-indigo-100 transition"
+            className="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-2 text-sm text-fuchsia-700 hover:bg-fuchsia-100 transition"
           >
             Hoy
           </button>
           <div className="flex gap-2">
             <button
               onClick={setSemanaAnterior}
-              className="flex-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm text-indigo-700 hover:bg-indigo-100 transition"
+              className="flex-1 rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-2 text-sm text-fuchsia-700 hover:bg-fuchsia-100 transition"
             >
               Semana pasada
             </button>
             <button
               onClick={setSemanActual}
-              className="flex-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm text-indigo-700 hover:bg-indigo-100 transition"
+              className="flex-1 rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-2 text-sm text-fuchsia-700 hover:bg-fuchsia-100 transition"
             >
               Semana actual
             </button>
@@ -169,7 +169,7 @@ export default function CalculadoraPagos() {
           <button
             onClick={calcular}
             disabled={!desde || !hasta || loading}
-            className="rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2.5 text-white font-medium shadow-md hover:shadow-lg disabled:opacity-40 transition"
+            className="rounded-lg bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 px-4 py-2.5 text-white font-medium shadow-md hover:shadow-lg disabled:opacity-40 transition"
           >
             {loading ? "Calculando..." : "Calcular"}
           </button>
@@ -186,11 +186,11 @@ export default function CalculadoraPagos() {
       {pagos.length > 0 && (
         <div className="space-y-4">
           {/* Total general */}
-          <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100 p-6">
+          <div className="rounded-2xl border-2 border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100 p-6">
             <div className="text-center">
-              <div className="text-sm text-indigo-600 font-medium mb-1">Total General</div>
-              <div className="text-4xl font-bold text-indigo-900">{formatCurrency(totalGeneral)}</div>
-              <div className="text-sm text-indigo-600 mt-2">
+              <div className="text-sm text-fuchsia-600 font-medium mb-1">Total General</div>
+              <div className="text-4xl font-bold text-fuchsia-900">{formatCurrency(totalGeneral)}</div>
+              <div className="text-sm text-fuchsia-600 mt-2">
                 {pagos.reduce((sum, p) => sum + p.cantidadTurnos, 0)} turnos • {pagos.length} barbero(s)
               </div>
             </div>
@@ -207,7 +207,7 @@ export default function CalculadoraPagos() {
                     <p className="text-sm text-slate-600">{pago.cantidadTurnos} turno(s)</p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-indigo-600">{formatCurrency(pago.totalAPagar)}</div>
+                    <div className="text-2xl font-bold text-fuchsia-600">{formatCurrency(pago.totalAPagar)}</div>
                     <div className="text-xs text-slate-500">Total a pagar</div>
                   </div>
                 </div>
@@ -261,16 +261,16 @@ export default function CalculadoraPagos() {
               </div>
 
               {/* Cálculo de comisión */}
-              <div className="px-6 py-4 bg-indigo-50 border-b">
+              <div className="px-6 py-4 bg-fuchsia-50 border-b">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-semibold text-indigo-900 mb-1">Comisión del barbero (50%)</h4>
-                    <p className="text-xs text-indigo-600">
+                    <h4 className="text-sm font-semibold text-fuchsia-900 mb-1">Comisión del barbero (50%)</h4>
+                    <p className="text-xs text-fuchsia-600">
                       {formatCurrency(pago.totalBruto)} × 50% = {formatCurrency(pago.comision50)}
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-indigo-600">{formatCurrency(pago.comision50)}</div>
+                    <div className="text-2xl font-bold text-fuchsia-600">{formatCurrency(pago.comision50)}</div>
                   </div>
                 </div>
               </div>

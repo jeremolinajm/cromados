@@ -64,7 +64,9 @@ public class JwtService {
     }
 
     private static PublicKey readPublicFromPem(String pem) throws Exception {
-        String clean = pem.replace("-----BEGIN PUBLIC KEY-----", "")
+        String clean = pem
+                .replace("\\n", "")  // Remove literal \n from .env files
+                .replace("-----BEGIN PUBLIC KEY-----", "")
                 .replace("-----END PUBLIC KEY-----", "")
                 .replaceAll("\\s+", "");
         byte[] bytes = Decoders.BASE64.decode(clean);
@@ -73,7 +75,9 @@ public class JwtService {
     }
 
     private static PrivateKey readPrivateFromPem(String pem) throws Exception {
-        String clean = pem.replace("-----BEGIN PRIVATE KEY-----", "")
+        String clean = pem
+                .replace("\\n", "")  // Remove literal \n from .env files
+                .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
                 .replaceAll("\\s+", "");
         byte[] bytes = Decoders.BASE64.decode(clean);

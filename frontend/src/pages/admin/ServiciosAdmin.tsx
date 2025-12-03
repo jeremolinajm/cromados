@@ -183,7 +183,7 @@ export default function ServiciosAdmin() {
         {mode.kind === "idle" && (
           <button
             onClick={startCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2.5 text-white font-medium shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 px-4 py-2.5 text-white font-medium shadow-md hover:shadow-lg hover:from-fuchsia-700 hover:to-fuchsia-800 transition-all"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -259,7 +259,7 @@ export default function ServiciosAdmin() {
                   type="checkbox"
                   checked={form.adicional}
                   onChange={(e) => setForm({ ...form, adicional: e.target.checked })}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-slate-300 text-fuchsia-600 focus:ring-fuchsia-500"
                 />
                 <span className="text-sm font-medium">
                   Es un servicio adicional
@@ -289,7 +289,7 @@ export default function ServiciosAdmin() {
                           setForm({ ...form, barberosHabilitadosIds: form.barberosHabilitadosIds.filter(id => id !== b.id!) });
                         }
                       }}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-fuchsia-600 focus:ring-fuchsia-500"
                     />
                     <span className="text-sm">{b.nombre}</span>
                   </label>
@@ -302,7 +302,7 @@ export default function ServiciosAdmin() {
             <button
               disabled={!canSave || loading}
               onClick={save}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-white disabled:opacity-40"
+              className="rounded-lg bg-fuchsia-600 px-4 py-2 text-white disabled:opacity-40"
             >
               Guardar
             </button>
@@ -332,7 +332,7 @@ export default function ServiciosAdmin() {
                   <div className="font-medium text-base mb-1">{it.nombre}</div>
 
                   <div className="flex items-center gap-3 text-xs text-slate-600 mb-2">
-                    <span className="font-semibold text-indigo-600">ARS ${it.precio}</span>
+                    <span className="font-semibold text-fuchsia-600">ARS ${it.precio}</span>
                     <span>⏱️ {it.duracionMin} min</span>
                     <span>📅 {(it as any).sesiones ?? 1} sesión{(it as any).sesiones > 1 ? 'es' : ''}</span>
                   </div>
@@ -382,7 +382,7 @@ export default function ServiciosAdmin() {
               <p className="text-sm text-slate-500 mb-2">Sin servicios.</p>
               <button
                 onClick={startCreate}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-xs text-fuchsia-600 hover:text-fuchsia-700 font-medium"
               >
                 Crear primer servicio
               </button>
@@ -422,7 +422,7 @@ export default function ServiciosAdmin() {
                     <div className="font-medium">{it.nombre}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="font-semibold text-indigo-600">ARS ${it.precio}</span>
+                    <span className="font-semibold text-fuchsia-600">ARS ${it.precio}</span>
                   </td>
                   <td className="px-4 py-3">{it.duracionMin} min</td>
                   <td className="px-4 py-3">{(it as any).sesiones ?? 1}</td>
@@ -468,7 +468,7 @@ export default function ServiciosAdmin() {
                       <p className="text-sm">Sin servicios.</p>
                       <button
                         onClick={startCreate}
-                        className="mt-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                        className="mt-2 text-xs text-fuchsia-600 hover:text-fuchsia-700 font-medium"
                       >
                         Crear primer servicio
                       </button>

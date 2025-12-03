@@ -160,8 +160,8 @@ export default function CustomSelect({
           key={opt.value}
           type="button"
           onClick={() => handleSelect(opt.value)}
-          className={`w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 ${
-            opt.value === value ? "bg-indigo-100 text-indigo-700 font-medium" : "text-slate-900"
+          className={`w-full px-3 py-2 text-left text-sm hover:bg-fuchsia-50 ${
+            opt.value === value ? "bg-fuchsia-100 text-fuchsia-700 font-medium" : "text-slate-900"
           }`}
         >
           {opt.label}

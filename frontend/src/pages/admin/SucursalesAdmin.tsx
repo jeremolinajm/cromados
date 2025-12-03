@@ -117,7 +117,7 @@ export default function SucursalesAdmin() {
         {mode.kind === "idle" && (
           <button
             onClick={startCreate}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2.5 text-white font-medium shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 px-4 py-2.5 text-white font-medium shadow-md hover:shadow-lg hover:from-fuchsia-700 hover:to-fuchsia-800 transition-all"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -140,7 +140,7 @@ export default function SucursalesAdmin() {
             <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-700">Nombre</span>
               <input
-                className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent"
                 value={form.nombre}
                 onChange={(e) => setForm({ ...form, nombre: e.target.value })}
                 placeholder="Ej: Sucursal Centro"
@@ -149,7 +149,7 @@ export default function SucursalesAdmin() {
             <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-700">Dirección</span>
               <input
-                className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent"
                 value={form.direccion}
                 onChange={(e) => setForm({ ...form, direccion: e.target.value })}
                 placeholder="Ej: Av. Principal 123"
@@ -161,7 +161,7 @@ export default function SucursalesAdmin() {
                 type="file"
                 accept="image/*"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-fuchsia-50 file:text-fuchsia-700 hover:file:bg-fuchsia-100 cursor-pointer"
               />
             </label>
           </div>
@@ -170,7 +170,7 @@ export default function SucursalesAdmin() {
             <button
               onClick={save}
               disabled={!canSave || loading}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-white disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+              className="rounded-xl bg-fuchsia-600 px-4 py-2 text-white disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
             >
               {mode.kind === "edit" ? "Guardar cambios" : "Crear"}
             </button>
@@ -241,7 +241,7 @@ export default function SucursalesAdmin() {
               <p className="text-sm text-slate-500 mb-2">Sin sucursales.</p>
               <button
                 onClick={startCreate}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-xs text-fuchsia-600 hover:text-fuchsia-700 font-medium"
               >
                 Crear primera sucursal
               </button>
@@ -307,7 +307,7 @@ export default function SucursalesAdmin() {
                       <p className="text-sm">Sin sucursales.</p>
                       <button
                         onClick={startCreate}
-                        className="mt-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                        className="mt-2 text-xs text-fuchsia-600 hover:text-fuchsia-700 font-medium"
                       >
                         Crear primera sucursal
                       </button>

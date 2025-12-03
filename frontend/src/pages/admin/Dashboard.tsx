@@ -134,15 +134,15 @@ export default function Dashboard() {
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <button
           onClick={() => navigate("/admin/barberos?new=1")}
-          className="group rounded-2xl border border-slate-200 p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all bg-white"
+          className="group rounded-2xl border border-slate-200 p-5 text-left hover:border-fuchsia-300 hover:shadow-md transition-all bg-white"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
-              <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-10 h-10 rounded-xl bg-fuchsia-100 flex items-center justify-center group-hover:bg-fuchsia-200 transition-colors">
+              <svg className="w-5 h-5 text-fuchsia-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">Acceso rápido</span>
+            <span className="text-xs font-medium text-fuchsia-600 bg-fuchsia-50 px-2 py-1 rounded-full">Acceso rápido</span>
           </div>
           <div className="text-lg font-semibold text-slate-900 mb-1">Nuevo barbero</div>
           <div className="text-slate-500 text-sm">Agregar un nuevo barbero al sistema</div>
@@ -220,14 +220,14 @@ export default function Dashboard() {
         <div className="rounded-2xl border border-slate-200 p-6 bg-gradient-to-br from-white to-slate-50 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="text-slate-500 text-sm font-medium">Barberos</div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-10 h-10 rounded-xl bg-fuchsia-100 flex items-center justify-center">
+              <svg className="w-5 h-5 text-fuchsia-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
           </div>
           <div className="text-3xl lg:text-4xl font-bold text-slate-900 mb-3">{totalBarberos}</div>
-          <Link to="/admin/barberos" className="inline-flex items-center text-indigo-600 text-sm font-medium hover:text-indigo-700 transition-colors">
+          <Link to="/admin/barberos" className="inline-flex items-center text-fuchsia-600 text-sm font-medium hover:text-fuchsia-700 transition-colors">
             Ver barberos
             <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -265,7 +265,7 @@ export default function Dashboard() {
           </div>
           <Link
             to="/admin/turnos"
-            className="hidden sm:inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700"
+            className="hidden sm:inline-flex items-center text-sm font-medium text-fuchsia-600 hover:text-fuchsia-700"
           >
             Ver todos
             <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -446,7 +446,7 @@ export default function Dashboard() {
           <div className="lg:hidden border-t border-slate-200 bg-slate-50">
             <Link
               to="/admin/turnos"
-              className="flex items-center justify-center px-4 py-3 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              className="flex items-center justify-center px-4 py-3 text-sm font-medium text-fuchsia-600 hover:text-fuchsia-700"
             >
               Ver todos los turnos
               <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

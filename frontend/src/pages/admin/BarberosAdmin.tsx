@@ -170,7 +170,7 @@ export default function BarberosAdmin() {
         {mode.kind === "idle" && (
           <button
             onClick={startCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2.5 text-white font-medium shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 px-4 py-2.5 text-white font-medium shadow-md hover:shadow-lg hover:from-fuchsia-700 hover:to-fuchsia-800 transition-all"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -277,7 +277,7 @@ export default function BarberosAdmin() {
                 type="file"
                 accept="image/*"
                 onChange={(e) => onSelectFile(e.target.files?.[0] || null)}
-                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-fuchsia-50 file:text-fuchsia-700 hover:file:bg-fuchsia-100 cursor-pointer"
               />
 
               {(() => {
@@ -306,7 +306,7 @@ export default function BarberosAdmin() {
             <button
               onClick={save}
               disabled={!canSave || loading}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-white disabled:bg-slate-300 text-sm sm:text-base"
+              className="rounded-xl bg-fuchsia-600 px-4 py-2 text-white disabled:bg-slate-300 text-sm sm:text-base"
             >
               {mode.kind === "edit" ? "Guardar cambios" : "Crear"}
             </button>
