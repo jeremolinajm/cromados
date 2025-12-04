@@ -20,18 +20,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ✅ Verificar autenticación al montar
   const checkAuth = useCallback(async () => {
-  console.log('[AuthContext] Verificando autenticación...');
-  console.log('[AuthContext] Cookies actuales:', document.cookie);
-  
   try {
     const result = await authApi.me();
-    console.log('[AuthContext] /me response:', result);
-    
+
     setIsAuthenticated(result.ok === true);
     setUser(result.user);
-    
+
     if (!result.ok) {
-      console.log('[AuthContext] No autenticado, limpiando cookies...');
       authApi.clearAllAuthCookies();
     }
   } catch (err) {
@@ -65,19 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ✅ Logout delegado a authApi
   async function logout() {
-  console.log('[AuthContext] Logout iniciado');
-  
   try {
     // Ejecutar logout (ahora limpia cookies primero)
     await authApi.logout();
   } catch (error) {
-    console.error('[AuthContext] Error en logout (ignorado):', error);
+    console.error('[AuthContext] Error en logout:', error);
   } finally {
     // ✅ SIEMPRE actualizar estado, incluso si hubo error
     setIsAuthenticated(false);
     setUser(undefined);
-    
-    console.log('[AuthContext] Estado actualizado: no autenticado');
   }
 }
 

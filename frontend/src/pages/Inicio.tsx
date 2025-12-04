@@ -13,7 +13,6 @@ export default function Inicio() {
         muted
         loop
         playsInline
-        poster="/img/no.jpg"
         preload="metadata"
         aria-hidden="true"
       />

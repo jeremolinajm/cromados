@@ -63,4 +63,12 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
 
     // Count turnos for a barbero
     long countByBarberoId(Long barberoId);
+
+    // 🆕 Para Telegram: buscar números de teléfono y edades asociadas a un nombre de cliente
+    // Usa GROUP BY para obtener números únicos, ordenados por el turno más reciente
+    @Query("SELECT t.clienteTelefono, t.clienteEdad, MAX(t.createdAt) as lastUsed FROM Turno t " +
+           "WHERE LOWER(t.clienteNombre) LIKE LOWER(CONCAT('%', :nombre, '%')) " +
+           "GROUP BY t.clienteTelefono, t.clienteEdad " +
+           "ORDER BY lastUsed DESC")
+    List<Object[]> findClientesByNombre(@Param("nombre") String nombre);
 }

@@ -53,6 +53,7 @@ public class AgendarCommandHandler extends BaseCommandHandler {
     private static final String STEP_SELECTING_ADICIONALES = "SELECTING_ADICIONALES";
     private static final String STEP_MEDIO_PAGO = "WAITING_MEDIO_PAGO";
     private static final String STEP_CLIENT_NAME = "WAITING_CLIENT_NAME";
+    private static final String STEP_CLIENT_PHONE_SELECTION = "WAITING_CLIENT_PHONE_SELECTION";
     private static final String STEP_CLIENT_PHONE = "WAITING_CLIENT_PHONE";
     private static final String STEP_CLIENT_AGE = "WAITING_CLIENT_AGE";
     private static final String STEP_CONFIRM = "CONFIRM_BLOCK";
@@ -86,6 +87,7 @@ public class AgendarCommandHandler extends BaseCommandHandler {
                STEP_SELECTING_ADICIONALES.equals(step) ||
                STEP_MEDIO_PAGO.equals(step) ||
                STEP_CLIENT_NAME.equals(step) ||
+               STEP_CLIENT_PHONE_SELECTION.equals(step) ||
                STEP_CLIENT_PHONE.equals(step) ||
                STEP_CLIENT_AGE.equals(step) ||
                STEP_CONFIRM.equals(step);
@@ -140,6 +142,17 @@ public class AgendarCommandHandler extends BaseCommandHandler {
             case "PAYMENT" -> {
                 String value = parts.length > 1 ? parts[1] : "";
                 yield handleMedioPagoCallback(value, state);
+            }
+            case "PHONE" -> {
+                // Formato: PHONE_ADD o PHONE_SELECT_[index]
+                if (parts.length >= 2) {
+                    if ("ADD".equals(parts[1])) {
+                        yield handleAddNewPhone(state);
+                    } else if ("SELECT".equals(parts[1]) && parts.length >= 3) {
+                        yield handleSelectExistingPhone(chatId, parts[2], state);
+                    }
+                }
+                yield "❌ Callback inválido";
             }
             case "CONFIRM" -> {
                 // Formato: CONFIRM_BLOCK_[YES/NO]
@@ -250,9 +263,8 @@ public class AgendarCommandHandler extends BaseCommandHandler {
             return "❌ No tenés horarios configurados. Configurá tus horarios en el panel web.";
         }
 
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-
-        // Mostrar solo días del mes que coincidan con días habilitados del barbero
+        // Primero recolectar todos los días válidos
+        List<LocalDate> diasValidos = new ArrayList<>();
         for (LocalDate fecha = inicio; !fecha.isAfter(fin); fecha = fecha.plusDays(1)) {
             if (fecha.isBefore(hoy)) {
                 continue; // Saltar días pasados
@@ -264,17 +276,23 @@ public class AgendarCommandHandler extends BaseCommandHandler {
                 continue; // Saltar días no habilitados
             }
 
-            String dayLabel = fecha.format(DATE_FMT) + " - " +
-                fecha.getDayOfWeek().getDisplayName(java.time.format.TextStyle.SHORT, new Locale("es", "AR"));
-            rows.add(messageBuilder.createSingleButtonRow(dayLabel, "DAYB_" + fecha.toString()));
+            diasValidos.add(fecha);
         }
 
-        if (rows.isEmpty()) {
+        if (diasValidos.isEmpty()) {
             state.setStep(STEP_MONTH_SELECTION);
             String errorMessage = "❌ No tenés días habilitados en " + formatYearMonth(yearMonth) + ".\n\n" +
                                  "📅 Seleccioná otro mes para agendar el turno:";
             InlineKeyboardMarkup keyboard = buildMonthSelectionKeyboard();
             return editMessageWithButtons(chatId, errorMessage, keyboard, state);
+        }
+
+        // Mostrar días en botones anchos (1 por fila)
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        for (LocalDate fecha : diasValidos) {
+            String dayLabel = fecha.format(DATE_FMT) + " - " +
+                fecha.getDayOfWeek().getDisplayName(java.time.format.TextStyle.SHORT, new Locale("es", "AR"));
+            rows.add(messageBuilder.createSingleButtonRow(dayLabel, "DAYB_" + fecha.toString()));
         }
 
         // Botón cancelar
@@ -676,6 +694,7 @@ public class AgendarCommandHandler extends BaseCommandHandler {
 
     /**
      * Maneja el input de nombre del cliente.
+     * Busca números de teléfono asociados al nombre ingresado.
      */
     private String handleClientNameInput(String text, SessionState state) {
         if (text.equalsIgnoreCase("cancelar")) {
@@ -688,13 +707,25 @@ public class AgendarCommandHandler extends BaseCommandHandler {
         }
 
         state.setTempClienteNombre(text.trim());
-        state.setStep(STEP_CLIENT_PHONE);
 
-        return """
-                📱 Ingresá el teléfono del cliente:
+        // Buscar números de teléfono asociados a este nombre
+        List<Object[]> clientesEncontrados = turnoRepo.findClientesByNombre(text.trim());
 
-                Ejemplo: +5491123456789 o 1123456789
-                """;
+        if (clientesEncontrados.isEmpty()) {
+            // No hay números asociados, solicitar teléfono normalmente
+            state.setStep(STEP_CLIENT_PHONE);
+            return """
+                    📱 Ingresá el teléfono del cliente:
+
+                    Ejemplo: +5491123456789 o 1123456789
+                    """;
+        } else {
+            // Hay números asociados, mostrar opciones
+            state.setStep(STEP_CLIENT_PHONE_SELECTION);
+            // Guardar los clientes encontrados en la sesión para usarlos después
+            state.setTempClientesEncontrados(clientesEncontrados);
+            return mostrarOpcionesTelefono(state, clientesEncontrados);
+        }
     }
 
     /**
@@ -1008,6 +1039,213 @@ public class AgendarCommandHandler extends BaseCommandHandler {
             state.reset();
             return "❌ Error guardando el turno: " + e.getMessage();
         }
+    }
+
+    /**
+     * Muestra opciones de teléfono: números existentes + opción de agregar nuevo.
+     */
+    private String mostrarOpcionesTelefono(SessionState state, List<Object[]> clientesEncontrados) {
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        String mensaje;
+
+        if (clientesEncontrados.size() == 1) {
+            // Un solo número encontrado
+            mensaje = String.format("""
+                    📱 Encontré este número asociado a %s:
+
+                    Podés seleccionarlo o agregar uno nuevo:
+                    """, state.getTempClienteNombre());
+        } else {
+            // Múltiples números encontrados
+            mensaje = String.format("""
+                    📱 Encontré %d números asociados a %s:
+
+                    Seleccioná uno o agregá uno nuevo:
+                    """, clientesEncontrados.size(), state.getTempClienteNombre());
+        }
+
+        // Botones para cada número encontrado
+        for (int i = 0; i < clientesEncontrados.size(); i++) {
+            Object[] cliente = clientesEncontrados.get(i);
+            String telefono = (String) cliente[0];
+            Integer edad = (Integer) cliente[1];
+
+            // Mostrar solo últimos 4 dígitos del teléfono para privacidad
+            String telefonoDisplay = telefono.length() > 4
+                ? "..." + telefono.substring(telefono.length() - 4)
+                : telefono;
+
+            rows.add(messageBuilder.createSingleButtonRow(
+                String.format("📞 %s (%d años)", telefonoDisplay, edad),
+                "PHONE_SELECT_" + i
+            ));
+        }
+
+        // Botón para agregar nuevo número
+        rows.add(messageBuilder.createSingleButtonRow(
+            "➕ Agregar otro número",
+            "PHONE_ADD"
+        ));
+
+        // Botón cancelar
+        rows.add(messageBuilder.createCancelButton());
+
+        InlineKeyboardMarkup keyboard = messageBuilder.buildInlineKeyboard(rows);
+        return sendMessageWithButtons(state.getBarbero().getTelegramChatId(), mensaje, keyboard);
+    }
+
+    /**
+     * Maneja la selección de un teléfono existente.
+     */
+    private String handleSelectExistingPhone(Long chatId, String indexStr, SessionState state) {
+        if (!STEP_CLIENT_PHONE_SELECTION.equals(state.getStep())) {
+            return "❌ Comando fuera de secuencia.";
+        }
+
+        try {
+            int index = Integer.parseInt(indexStr);
+            List<Object[]> clientes = state.getTempClientesEncontrados();
+
+            if (index < 0 || index >= clientes.size()) {
+                return "❌ Selección inválida.";
+            }
+
+            Object[] clienteSeleccionado = clientes.get(index);
+            String telefono = (String) clienteSeleccionado[0];
+            Integer edad = (Integer) clienteSeleccionado[1];
+
+            // Guardar teléfono y edad
+            state.setTempClienteTelefono(telefono);
+            state.setTempClienteEdad(edad);
+
+            // Ir directo a confirmación (saltar input de edad)
+            state.setStep(STEP_CONFIRM);
+
+            return mostrarConfirmacionEditando(chatId, state);
+
+        } catch (NumberFormatException e) {
+            return "❌ Índice inválido.";
+        }
+    }
+
+    /**
+     * Maneja cuando el usuario quiere agregar un nuevo número.
+     */
+    private String handleAddNewPhone(SessionState state) {
+        if (!STEP_CLIENT_PHONE_SELECTION.equals(state.getStep())) {
+            return "❌ Comando fuera de secuencia.";
+        }
+
+        // Cambiar a paso de ingreso de teléfono
+        state.setStep(STEP_CLIENT_PHONE);
+
+        // Editar el mensaje anterior en lugar de enviar uno nuevo
+        String mensaje = """
+                📱 Ingresá el nuevo teléfono del cliente:
+
+                Ejemplo: +5491123456789 o 1123456789
+                """;
+
+        // Como no hay botones, simplemente editamos el mensaje para quitar los botones
+        return editMessageText(state.getBarbero().getTelegramChatId(), mensaje, state);
+    }
+
+    /**
+     * Edita un mensaje existente con nuevo texto (sin botones).
+     */
+    private String editMessageText(Long chatId, String text, SessionState state) {
+        Integer messageId = state.getLastMessageId();
+
+        if (messageId == null) {
+            // Si no hay messageId, enviar nuevo mensaje
+            sendText(chatId, text);
+            return null;
+        }
+
+        try {
+            org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText editMsg =
+                new org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText();
+            editMsg.setChatId(chatId.toString());
+            editMsg.setMessageId(messageId);
+            editMsg.setText(text);
+            bot.execute(editMsg);
+            return null;
+        } catch (org.telegram.telegrambots.meta.exceptions.TelegramApiException e) {
+            log.warn("[Telegram] Error editando mensaje chatId={}, messageId={}: {}. Enviando nuevo mensaje.",
+                     chatId, messageId, e.getMessage());
+            sendText(chatId, text);
+            return null;
+        }
+    }
+
+    /**
+     * Muestra confirmación editando el mensaje anterior (para cuando se selecciona un teléfono existente).
+     */
+    private String mostrarConfirmacionEditando(Long chatId, SessionState state) {
+        boolean esFH = state.getTempHora().equals(LocalTime.of(0, 0));
+        String horaDisplay = esFH ? "FH (Fuera de horario)" : state.getTempHora().format(TIME_FMT);
+        String medioPagoDisplay = "EFECTIVO".equals(state.getTempMedioPago()) ? "Efectivo" : "Transferencia";
+
+        // Calcular precio total (servicio + adicionales)
+        BigDecimal precioTotal = BigDecimal.valueOf(state.getTempServicio().getPrecio());
+        if (state.getTempAdicionalesIds() != null && !state.getTempAdicionalesIds().isEmpty()) {
+            for (Long adicionalId : state.getTempAdicionalesIds()) {
+                TipoCorte adicional = tipoCorteRepo.findById(adicionalId).orElse(null);
+                if (adicional != null) {
+                    precioTotal = precioTotal.add(BigDecimal.valueOf(adicional.getPrecio()));
+                }
+            }
+        }
+
+        // Construir lista de adicionales para mostrar
+        StringBuilder adicionalesInfo = new StringBuilder();
+        if (state.getTempAdicionalesIds() != null && !state.getTempAdicionalesIds().isEmpty()) {
+            adicionalesInfo.append("\n➕ Adicionales:");
+            for (Long adicionalId : state.getTempAdicionalesIds()) {
+                tipoCorteRepo.findById(adicionalId).ifPresent(adicional ->
+                        adicionalesInfo.append(String.format("\n   • %s ($%d)", adicional.getNombre(), adicional.getPrecio()))
+                );
+            }
+        }
+
+        String mensaje = String.format("""
+                ✅ Confirmar bloqueo de turno
+
+                📅 Fecha: %s
+                ⏰ Hora: %s
+                💇 Servicio: %s ($%d)%s
+                💰 Total: $%s
+                💳 Medio de pago: %s
+                👤 Cliente: %s
+                📱 Teléfono: %s
+                🎂 Edad: %d años
+
+                Este turno se registrará como turno presencial y aparecerá en el panel administrativo.
+                """,
+                state.getTempFecha().format(DATE_FMT),
+                horaDisplay,
+                state.getTempServicio().getNombre(),
+                state.getTempServicio().getPrecio(),
+                adicionalesInfo.toString(),
+                precioTotal,
+                medioPagoDisplay,
+                state.getTempClienteNombre(),
+                state.getTempClienteTelefono(),
+                state.getTempClienteEdad()
+        );
+
+        // Editar mensaje con botones
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        // Fila con botones de confirmar y cancelar
+        List<InlineKeyboardButton> confirmRow = new ArrayList<>();
+        confirmRow.add(messageBuilder.buildButton("✅ Sí, confirmar", "CONFIRM_BLOCK_YES"));
+        confirmRow.add(messageBuilder.buildButton("❌ Cancelar", "CONFIRM_BLOCK_NO"));
+        rows.add(confirmRow);
+
+        InlineKeyboardMarkup keyboard = messageBuilder.buildInlineKeyboard(rows);
+        return editMessageWithButtons(chatId, mensaje, keyboard, state);
     }
 
     /**

@@ -129,11 +129,12 @@ public class WhatsAppRecordatorioScheduler {
     }
 
     /**
-     * Verifica si un turno está confirmado (pagado o con estado CONFIRMADO).
+     * Verifica si un turno está confirmado (pagado, CONFIRMADO, o BLOQUEADO desde Telegram).
      */
     private boolean esturnoConfirmado(Turno turno) {
         return Boolean.TRUE.equals(turno.getPagoConfirmado())
-                || "CONFIRMADO".equalsIgnoreCase(turno.getEstado());
+                || "CONFIRMADO".equalsIgnoreCase(turno.getEstado())
+                || "BLOQUEADO".equalsIgnoreCase(turno.getEstado());
     }
 
     /**

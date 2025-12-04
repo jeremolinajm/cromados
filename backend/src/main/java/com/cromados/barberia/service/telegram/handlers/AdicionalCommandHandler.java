@@ -100,17 +100,19 @@ public class AdicionalCommandHandler extends BaseCommandHandler {
     }
 
     /**
-     * Muestra la lista de turnos próximos del barbero (hoy y futuros).
+     * Muestra la lista de turnos del barbero (últimos 30 días + futuros).
+     * Permite agregar adicionales a turnos pasados para ajustar montos finales.
      */
     private String showTurnosList(Long chatId, SessionState state) {
         Barbero barbero = getBarbero(state);
 
-        // Obtener turnos desde hoy en adelante
+        // Obtener turnos desde 30 días atrás hasta 1 mes adelante
         LocalDate hoy = LocalDate.now();
-        LocalDate hasta = hoy.plusMonths(1);
+        LocalDate desde = hoy.minusDays(30);  // Últimos 30 días
+        LocalDate hasta = hoy.plusMonths(1);   // Próximo mes
 
         List<Turno> turnos = turnoRepo.findByBarbero_IdAndFechaBetweenOrderByFechaAscHoraAsc(
-                barbero.getId(), hoy, hasta);
+                barbero.getId(), desde, hasta);
 
         // Filtrar solo turnos confirmados o bloqueados (no pendientes de pago)
         turnos = turnos.stream()
@@ -121,7 +123,7 @@ public class AdicionalCommandHandler extends BaseCommandHandler {
 
         if (turnos.isEmpty()) {
             state.reset();
-            return "ℹ️ No tenés turnos próximos confirmados.";
+            return "ℹ️ No tenés turnos confirmados en los últimos 30 días ni próximos.";
         }
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();

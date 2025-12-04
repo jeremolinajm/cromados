@@ -52,6 +52,9 @@ public class SessionState {
     // Para /mover (nuevo)
     Long tempTurnoIdToMove;
 
+    // Para /agendar (búsqueda de clientes por nombre)
+    List<Object[]> tempClientesEncontrados; // [(telefono, edad), ...]
+
     // Barbero vinculado
     Barbero barbero;
 
@@ -84,6 +87,7 @@ public class SessionState {
         tempConflictDates = null;
         tempYearMonth = null;
         tempTurnoIdToMove = null;
+        tempClientesEncontrados = null;
     }
 
     /**

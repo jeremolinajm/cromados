@@ -18,10 +18,9 @@ export function getCookie(name: string): string | null {
   // Fallback a localStorage
   const backup = localStorage.getItem(`_${name.toLowerCase()}_backup`);
   if (backup) {
-    console.warn(`[getCookie] Usando ${name} desde localStorage (cookies bloqueadas)`);
     return backup;
   }
-  
+
   return null;
 }
 
@@ -36,10 +35,9 @@ export function getCsrfCookie(): string {
   // Fallback: localStorage (si cookies están bloqueadas)
   const fromStorage = localStorage.getItem('_csrf_backup');
   if (fromStorage) {
-    console.warn('[getCsrfCookie] Usando CSRF desde localStorage (cookies bloqueadas?)');
     return fromStorage;
   }
-  
+
   return '';
 }
 
@@ -88,9 +86,6 @@ export function clearAllAuthCookies(): void {
       });
     });
   });
-  
-  console.log('[clearAllAuthCookies] Limpieza agresiva completada');
-  console.log('[clearAllAuthCookies] Cookies restantes:', document.cookie);
 }
 
 // ================== Endpoints de Autenticación ==================
@@ -120,21 +115,18 @@ export async function login(user: string, pass: string): Promise<{ ok: boolean }
   }
 
   const result = await response.json();
-  
+
   // ✅ Guardar tokens en localStorage (funciona cross-origin)
   if (result.csrf) {
     localStorage.setItem('_csrf_backup', result.csrf);
-    console.log('[login] ✅ CSRF guardado');
   }
   if (result.access) {
     localStorage.setItem('_access_backup', result.access);
-    console.log('[login] ✅ ACCESS guardado');
   }
   if (result.refresh) {
     localStorage.setItem('_refresh_backup', result.refresh);
-    console.log('[login] ✅ REFRESH guardado');
   }
-  
+
   return result;
 }
 
@@ -194,31 +186,24 @@ export async function me(): Promise<{ ok: boolean; user?: string; roles?: string
  * IMPORTANTE: Guarda CSRF antes de limpiar para poder hacer el request
  */
 export async function logout(): Promise<void> {
-  console.log('[logout] Iniciando...');
-  console.log('[logout] Cookies antes:', document.cookie);
-
   // ✅ 1. PRIMERO limpiar localmente (no esperar al servidor)
   clearAllAuthCookies();
-  
-  console.log('[logout] Cookies después de limpiar:', document.cookie);
 
   // ✅ 2. Intentar notificar al servidor (best effort)
   const csrf = getCsrfCookie();
   const url = `${RAW_URL}/auth/logout`;
 
   // No esperamos ni manejamos errores - es opcional
-  fetch(url, { 
-    method: "POST", 
+  fetch(url, {
+    method: "POST",
     credentials: "include",
-    headers: { 
+    headers: {
       "Content-Type": "application/json",
       ...(csrf ? { "X-CSRF-Token": csrf } : {})
     }
-  }).catch(err => {
-    console.warn('[logout] Server logout falló (ignorado):', err);
+  }).catch(() => {
+    // Ignorar errores de logout del servidor
   });
-
-  console.log('[logout] ✅ Completado');
 }
 /**
  * Obtiene cookie CSRF del servidor (para cliente público)
@@ -240,7 +225,6 @@ export async function ensureCsrf(baseUrl?: string): Promise<void> {
         if (data.csrf) {
           // Guardar en localStorage como backup (para mobile con cookies bloqueadas)
           localStorage.setItem('_csrf_backup', data.csrf);
-          console.log('[ensureCsrf] ✅ Token guardado en localStorage');
         }
       } catch {
         // Si no hay JSON, el token debe estar en la cookie
