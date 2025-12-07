@@ -112,6 +112,14 @@ export type HorarioBarberoDTO = {
   fin: string;
 };
 
+export type DiaExcepcionalBarberoDTO = {
+  id?: number;
+  barberoId?: number;
+  fecha: string; // YYYY-MM-DD
+  inicio: string; // HH:mm
+  fin: string; // HH:mm
+};
+
 async function getPublic<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
   return jsonOrThrow(res);
@@ -212,7 +220,34 @@ export const AdminApi = {
   
   async deleteHorarioBarbero(barberoId: number, diaSemana: number): Promise<void> {
     const res = await fetch(`${RAW_URL}/admin/horarios-barbero/${barberoId}/${diaSemana}`, {
-      method: "DELETE", 
+      method: "DELETE",
+      credentials: 'include',
+      headers: authHeaders()
+    });
+    if (!res.ok && res.status !== 204) await jsonOrThrow(res);
+  },
+
+  async listDiasExcepcionales(barberoId: number): Promise<DiaExcepcionalBarberoDTO[]> {
+    const res = await fetch(`${RAW_URL}/admin/horarios-barbero/${barberoId}/excepcionales`, {
+      credentials: 'include',
+      headers: authHeaders()
+    });
+    return jsonOrThrow(res);
+  },
+
+  async agregarDiaExcepcional(barberoId: number, fecha: string, inicio: string, fin: string): Promise<DiaExcepcionalBarberoDTO> {
+    const res = await fetch(`${RAW_URL}/admin/horarios-barbero/${barberoId}/excepcionales`, {
+      method: "POST",
+      credentials: 'include',
+      headers: authHeaders(),
+      body: JSON.stringify({ fecha, inicio, fin }),
+    });
+    return jsonOrThrow(res);
+  },
+
+  async eliminarDiaExcepcional(barberoId: number, id: number): Promise<void> {
+    const res = await fetch(`${RAW_URL}/admin/horarios-barbero/${barberoId}/excepcionales/${id}`, {
+      method: "DELETE",
       credentials: 'include',
       headers: authHeaders()
     });

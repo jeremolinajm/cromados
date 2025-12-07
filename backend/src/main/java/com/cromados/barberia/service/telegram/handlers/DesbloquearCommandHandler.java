@@ -74,7 +74,7 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
     public String handleCommand(Long chatId, SessionState state) {
         state.reset();
         state.setStep(STEP_MONTH_SELECTION);
-        return showMonthSelection(chatId);
+        return showMonthSelection(chatId, state, false);
     }
 
     @Override
@@ -132,7 +132,7 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
     /**
      * Muestra botones para seleccionar mes.
      */
-    private String showMonthSelection(Long chatId) {
+    private String showMonthSelection(Long chatId, SessionState state, boolean edit) {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         // Mes actual
@@ -161,7 +161,12 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
         rows.add(messageBuilder.createCancelButton());
 
         InlineKeyboardMarkup keyboard = messageBuilder.buildInlineKeyboard(rows);
-        return sendMessageWithButtons(chatId, "📅 Seleccioná el mes para ver bloqueos:", keyboard);
+
+        if (edit) {
+            return editMessageWithButtons(chatId, "📅 Seleccioná el mes para ver bloqueos:", keyboard, state);
+        } else {
+            return sendMessageWithButtons(chatId, "📅 Seleccioná el mes para ver bloqueos:", keyboard);
+        }
     }
 
     /**
@@ -208,17 +213,29 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
         LocalDate inicio = yearMonth.atDay(1);
         LocalDate fin = yearMonth.atEndOfMonth();
 
-        // 1. Buscar turnos bloqueados por Telegram (sin pagoConfirmado)
+        // 1. Buscar turnos bloqueados (Telegram + App Web)
+        // - BLOQUEADO sin pagoConfirmado = Turnos presenciales/telefónicos desde Telegram
+        // - pagoConfirmado = true = Turnos de app web con seña/pago
+        // - CONFIRMADO = Turnos confirmados manualmente
+        // Solo mostrar turnos futuros o de hoy
+        LocalDate hoy = LocalDate.now();
         List<Turno> turnosBloqueados = turnoRepo.findByBarbero_IdAndFechaBetweenOrderByFechaAscHoraAsc(
                         barbero.getId(), inicio, fin
                 ).stream()
-                .filter(t -> "BLOQUEADO".equals(t.getEstado()) && !Boolean.TRUE.equals(t.getPagoConfirmado()))
+                .filter(t -> !t.getFecha().isBefore(hoy))
+                .filter(t ->
+                    ("BLOQUEADO".equals(t.getEstado()) && !Boolean.TRUE.equals(t.getPagoConfirmado())) ||
+                    Boolean.TRUE.equals(t.getPagoConfirmado()) ||
+                    "CONFIRMADO".equals(t.getEstado())
+                )
                 .toList();
 
-        // 2. Buscar bloqueos de descanso
+        // 2. Buscar bloqueos de descanso (solo futuros o de hoy)
         List<BloqueoTurno> bloqueosDescanso = bloqueoRepo.findByBarbero_IdAndFechaBetween(
                 barbero.getId(), inicio, fin
-        );
+        ).stream()
+                .filter(b -> !b.getFecha().isBefore(hoy))
+                .toList();
 
         // Agrupar por día
         Map<LocalDate, Integer> bloqueosPorDia = new HashMap<>();
@@ -280,10 +297,20 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
     private String mostrarBloqueosDelDia(Long chatId, SessionState state, LocalDate fecha) {
         Barbero barbero = getBarbero(state);
 
-        // 1. Buscar turnos bloqueados en esa fecha
+        // Validar que la fecha no sea del pasado
+        if (fecha.isBefore(LocalDate.now())) {
+            state.reset();
+            return "❌ No se pueden desbloquear turnos del pasado. La fecha " + fecha.format(DATE_FMT) + " ya pasó.";
+        }
+
+        // 1. Buscar turnos bloqueados en esa fecha (Telegram + App Web)
         List<Turno> turnosBloqueados = turnoRepo.findByBarbero_IdAndFecha(barbero.getId(), fecha)
                 .stream()
-                .filter(t -> "BLOQUEADO".equals(t.getEstado()) && !Boolean.TRUE.equals(t.getPagoConfirmado()))
+                .filter(t ->
+                    ("BLOQUEADO".equals(t.getEstado()) && !Boolean.TRUE.equals(t.getPagoConfirmado())) ||
+                    Boolean.TRUE.equals(t.getPagoConfirmado()) ||
+                    "CONFIRMADO".equals(t.getEstado())
+                )
                 .toList();
 
         // 2. Buscar bloqueos de descanso
@@ -303,7 +330,18 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
 
         // Agregar turnos bloqueados
         for (Turno t : turnosBloqueados) {
-            String texto = String.format("🔒 %s - %s",
+            // Distinguir origen del turno
+            String emoji;
+            if (Boolean.TRUE.equals(t.getPagoConfirmado())) {
+                emoji = "📱"; // Turno de app web (con pago)
+            } else if ("CONFIRMADO".equals(t.getEstado())) {
+                emoji = "✅"; // Turno confirmado manualmente
+            } else {
+                emoji = "🔒"; // Turno presencial/telefónico de Telegram
+            }
+
+            String texto = String.format("%s %s - %s",
+                    emoji,
                     t.getHora().format(TIME_FMT),
                     t.getClienteNombre()
             );
@@ -335,6 +373,7 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
                 🔓 Bloqueos del %s
 
                 🔒 = Turno presencial
+                📱 = Turno app
                 😴 = Descanso
 
                 Seleccioná qué querés desbloquear:
@@ -353,7 +392,7 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
         return switch (value) {
             case "MONTH" -> {
                 state.setStep(STEP_MONTH_SELECTION);
-                yield showMonthSelection(chatId);
+                yield showMonthSelection(chatId, state, true);
             }
             case "DAY" -> {
                 state.setStep(STEP_DAY_SELECTION);
@@ -379,18 +418,22 @@ public class DesbloquearCommandHandler extends BaseCommandHandler {
             Turno turno = turnoRepo.findById(turnoId)
                     .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado"));
 
-            // Verificar que sea del barbero y esté bloqueado
+            // Verificar que sea del barbero
             if (!turno.getBarbero().getId().equals(barbero.getId())) {
                 return "❌ Este turno no es tuyo.";
             }
 
-            if (!"BLOQUEADO".equals(turno.getEstado())) {
-                return "❌ Este turno no está bloqueado.";
-            }
+            // Verificar que sea un turno válido para desbloquear
+            // Ahora permitimos desbloquear:
+            // - Turnos de Telegram (BLOQUEADO sin pago)
+            // - Turnos de app web (pagoConfirmado = true)
+            // - Turnos confirmados manualmente (CONFIRMADO)
+            boolean esDesbloqueable = ("BLOQUEADO".equals(turno.getEstado()) && !Boolean.TRUE.equals(turno.getPagoConfirmado())) ||
+                                      Boolean.TRUE.equals(turno.getPagoConfirmado()) ||
+                                      "CONFIRMADO".equals(turno.getEstado());
 
-            // Verificar que NO sea una compra web
-            if (Boolean.TRUE.equals(turno.getPagoConfirmado())) {
-                return "❌ No podés desbloquear turnos de la web.";
+            if (!esDesbloqueable) {
+                return "❌ Este turno no se puede desbloquear.";
             }
 
             // Eliminar el turno

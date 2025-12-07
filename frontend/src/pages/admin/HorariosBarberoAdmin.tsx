@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { AdminApi, type BarberoDTO, type Page } from "../../lib/adminApi";
+import { AdminApi, type BarberoDTO, type Page, type DiaExcepcionalBarberoDTO } from "../../lib/adminApi";
 import { useToast } from "../../components/Toast";
 import { RAW_URL } from "../../lib/adminApi";
 import CustomSelect from "../../components/CustomSelect";
@@ -56,6 +56,17 @@ export default function HorariosBarberoAdmin() {
   const [rowsExtra, setRowsExtra] = useState<Record<number, Horario | null>>({
   1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null,
 });
+
+  // Estado para días excepcionales
+  const [diasExcepcionales, setDiasExcepcionales] = useState<DiaExcepcionalBarberoDTO[]>([]);
+  const [nuevoDiaExcepcional, setNuevoDiaExcepcional] = useState({
+    fecha: "",
+    inicio1: "09:00",
+    fin1: "13:00",
+    inicio2: "",
+    fin2: "",
+  });
+  const [editandoFecha, setEditandoFecha] = useState<string | null>(null);
 
   const selected = useMemo(
     () => barberos.find((b) => Number(b.id) === Number(barberoId)) || null,
@@ -114,6 +125,11 @@ export default function HorariosBarberoAdmin() {
 
         setRows(m1);
         setRowsExtra(m2);
+
+        // Cargar días excepcionales
+        const excepcionales = await AdminApi.listDiasExcepcionales(barberoId);
+        setDiasExcepcionales(excepcionales || []);
+
         setError(null);
       } catch (e: any) {
         setError(e?.message || "Error cargando horarios");
@@ -275,6 +291,119 @@ export default function HorariosBarberoAdmin() {
 
     setDirty((d) => ({ ...d, [dia]: false }));
   };
+
+  const cargarDiaExcepcionalParaEditar = (fecha: string, franjas: DiaExcepcionalBarberoDTO[]) => {
+    const franjasOrdenadas = franjas.sort((a, b) => a.inicio.localeCompare(b.inicio));
+    const t1 = franjasOrdenadas[0];
+    const t2 = franjasOrdenadas[1];
+
+    setNuevoDiaExcepcional({
+      fecha: fecha,
+      inicio1: t1?.inicio || "09:00",
+      fin1: t1?.fin || "13:00",
+      inicio2: t2?.inicio || "",
+      fin2: t2?.fin || "",
+    });
+    setEditandoFecha(fecha);
+
+    // Scroll al formulario
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  };
+
+  const agregarDiaExcepcional = async () => {
+    if (!barberoId) return;
+
+    const { fecha, inicio1, fin1, inicio2, fin2 } = nuevoDiaExcepcional;
+
+    if (!fecha || !inicio1 || !fin1) {
+      toast("Completá fecha, inicio y fin de T1");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await ensureCsrf(RAW_URL);
+
+      // Si estamos editando, primero eliminamos las franjas existentes
+      if (editandoFecha) {
+        const franjasAEliminar = diasExcepcionales.filter(d => d.fecha === editandoFecha);
+        for (const franja of franjasAEliminar) {
+          if (franja.id) {
+            await AdminApi.eliminarDiaExcepcional(barberoId, franja.id);
+          }
+        }
+      }
+
+      // Agregar T1
+      await AdminApi.agregarDiaExcepcional(barberoId, fecha, inicio1, fin1);
+
+      // Agregar T2 si está completo
+      if (inicio2 && fin2) {
+        await AdminApi.agregarDiaExcepcional(barberoId, fecha, inicio2, fin2);
+      }
+
+      // Recargar lista
+      const excepcionales = await AdminApi.listDiasExcepcionales(barberoId);
+      setDiasExcepcionales(excepcionales || []);
+
+      // Limpiar formulario
+      setNuevoDiaExcepcional({
+        fecha: "",
+        inicio1: "09:00",
+        fin1: "13:00",
+        inicio2: "",
+        fin2: "",
+      });
+      setEditandoFecha(null);
+
+      toast(editandoFecha ? "Día excepcional actualizado." : "Día excepcional agregado.");
+    } catch (e: any) {
+      toast(e?.message || "Error guardando día excepcional.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelarEdicion = () => {
+    setNuevoDiaExcepcional({
+      fecha: "",
+      inicio1: "09:00",
+      fin1: "13:00",
+      inicio2: "",
+      fin2: "",
+    });
+    setEditandoFecha(null);
+  };
+
+  const eliminarDiaExcepcional = async (id: number) => {
+    if (!barberoId) return;
+
+    try {
+      setLoading(true);
+      await ensureCsrf(RAW_URL);
+      await AdminApi.eliminarDiaExcepcional(barberoId, id);
+
+      // Recargar lista
+      const excepcionales = await AdminApi.listDiasExcepcionales(barberoId);
+      setDiasExcepcionales(excepcionales || []);
+
+      toast("Día excepcional eliminado.");
+    } catch (e: any) {
+      toast(e?.message || "Error eliminando día excepcional.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Agrupar días excepcionales por fecha
+  const diasExcepcionalesAgrupados = useMemo(() => {
+    const grupos: Record<string, DiaExcepcionalBarberoDTO[]> = {};
+    diasExcepcionales.forEach((dia) => {
+      if (!grupos[dia.fecha]) grupos[dia.fecha] = [];
+      grupos[dia.fecha].push(dia);
+    });
+    return grupos;
+  }, [diasExcepcionales]);
 
   return (
     <div className="space-y-6">
@@ -473,6 +602,166 @@ export default function HorariosBarberoAdmin() {
           </div>
 
           {loading && <div className="mt-3 text-slate-500 text-sm">Guardando…</div>}
+        </div>
+      )}
+
+      {/* Sección de días excepcionales */}
+      {!!barberoId && !loading && (
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-slate-200/50">
+          <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-amber-50 to-white border-b border-amber-200 rounded-t-2xl">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-900">Días Excepcionales</h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              Días específicos que no siguen el horario regular (ej: festivos, eventos especiales)
+            </p>
+          </div>
+
+          <div className="p-4 sm:p-6 space-y-6">
+            {/* Formulario para agregar/editar */}
+            <div className="bg-gradient-to-r from-amber-50/50 to-white p-4 rounded-xl border border-amber-200">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {editandoFecha ? "Editar día excepcional" : "Agregar día excepcional"}
+                </h3>
+                {editandoFecha && (
+                  <button
+                    className="text-xs text-slate-600 hover:text-slate-900 underline"
+                    onClick={cancelarEdicion}
+                  >
+                    Cancelar edición
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Fecha</label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    value={nuevoDiaExcepcional.fecha}
+                    onChange={(e) => setNuevoDiaExcepcional({ ...nuevoDiaExcepcional, fecha: e.target.value })}
+                    min={new Date().toISOString().split('T')[0]}
+                    disabled={!!editandoFecha}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">T1 Inicio</label>
+                  <CustomSelect
+                    value={nuevoDiaExcepcional.inicio1}
+                    onChange={(value) => setNuevoDiaExcepcional({ ...nuevoDiaExcepcional, inicio1: value })}
+                    options={TIME_OPTIONS}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">T1 Fin</label>
+                  <CustomSelect
+                    value={nuevoDiaExcepcional.fin1}
+                    onChange={(value) => setNuevoDiaExcepcional({ ...nuevoDiaExcepcional, fin1: value })}
+                    options={TIME_OPTIONS}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">T2 Inicio</label>
+                  <CustomSelect
+                    value={nuevoDiaExcepcional.inicio2}
+                    onChange={(value) => setNuevoDiaExcepcional({ ...nuevoDiaExcepcional, inicio2: value })}
+                    options={TIME_OPTIONS}
+                    placeholder="Opcional"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">T2 Fin</label>
+                  <CustomSelect
+                    value={nuevoDiaExcepcional.fin2}
+                    onChange={(value) => setNuevoDiaExcepcional({ ...nuevoDiaExcepcional, fin2: value })}
+                    options={TIME_OPTIONS}
+                    placeholder="Opcional"
+                  />
+                </div>
+              </div>
+              <button
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 px-4 py-2 text-sm font-medium text-white hover:from-fuchsia-700 hover:to-fuchsia-800 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={agregarDiaExcepcional}
+                disabled={loading || !nuevoDiaExcepcional.fecha}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {editandoFecha ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  )}
+                </svg>
+                {editandoFecha ? "Guardar cambios" : "Agregar"}
+              </button>
+            </div>
+
+            {/* Lista de días excepcionales */}
+            {Object.keys(diasExcepcionalesAgrupados).length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                No hay días excepcionales configurados
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {Object.entries(diasExcepcionalesAgrupados)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([fecha, franjas]) => {
+                    const fechaObj = new Date(fecha + 'T00:00:00');
+                    const diaNombre = fechaObj.toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+                    return (
+                      <div key={fecha} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:border-fuchsia-300 transition-colors">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900 capitalize text-sm">{diaNombre}</div>
+                            <div className="text-xs text-slate-600 mt-1 space-x-2">
+                              {franjas
+                                .sort((a, b) => a.inicio.localeCompare(b.inicio))
+                                .map((franja, idx) => (
+                                  <span key={franja.id} className="inline-flex items-center gap-1">
+                                    {idx > 0 && <span className="text-slate-400">|</span>}
+                                    <span className="font-mono">{franja.inicio} - {franja.fin}</span>
+                                  </span>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="flex-shrink-0 inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+                            onClick={() => cargarDiaExcepcionalParaEditar(fecha, franjas)}
+                            disabled={loading}
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Editar
+                          </button>
+                          <button
+                            className="flex-shrink-0 inline-flex items-center gap-1 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+                            onClick={() => {
+                              // Eliminar todas las franjas de esta fecha
+                              franjas.forEach((franja) => {
+                                if (franja.id) eliminarDiaExcepcional(franja.id);
+                              });
+                            }}
+                            disabled={loading}
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

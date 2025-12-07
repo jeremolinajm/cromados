@@ -1,8 +1,10 @@
 package com.cromados.barberia.service;
 
+import com.cromados.barberia.model.DiaExcepcionalBarbero;
 import com.cromados.barberia.model.HorarioBarbero;
 import com.cromados.barberia.model.Turno;
 import com.cromados.barberia.repository.BloqueoTurnoRepository;
+import com.cromados.barberia.repository.DiaExcepcionalBarberoRepository;
 import com.cromados.barberia.repository.HorarioBarberoRepository;
 import com.cromados.barberia.repository.TurnoRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 public class HorarioService {
 
     private final HorarioBarberoRepository horarioBarberoRepository;
+    private final DiaExcepcionalBarberoRepository diaExcepcionalBarberoRepository;
     private final TurnoRepository turnoRepository;
     private final BloqueoTurnoRepository bloqueoTurnoRepository;
 
@@ -42,26 +45,54 @@ public class HorarioService {
      * Calcula los horarios disponibles para un barbero en una fecha específica.
      *
      * Considera:
-     * - Horarios laborales del barbero (HorarioBarbero)
+     * - Días excepcionales (DiaExcepcionalBarbero) - PRIORIDAD 1
+     * - Horarios laborales regulares (HorarioBarbero) - PRIORIDAD 2
      * - Turnos confirmados (pagoConfirmado=true)
      * - Turnos bloqueados (estado=BLOQUEADO)
      * - Turnos confirmados pero no pagados (estado=CONFIRMADO)
      * - Bloqueos manuales (BloqueoTurno - tabla legacy)
      * - Horarios pasados (si es hoy)
      *
+     * PRIORIDAD: Si existe un día excepcional para la fecha, se usan SOLO esas franjas
+     * (ignora completamente el horario regular del día de la semana).
+     *
      * @param barberoId ID del barbero
      * @param fecha Fecha a consultar
      * @return Lista de horarios disponibles (LocalTime) ordenados
      */
     public List<LocalTime> horariosDisponibles(Long barberoId, LocalDate fecha) {
-        final int dow = fecha.getDayOfWeek().getValue(); // 1=Lunes, 7=Domingo
+        // 1. Verificar si existe un día excepcional para esta fecha (PRIORIDAD MÁXIMA)
+        List<DiaExcepcionalBarbero> franjasExcepcionales = diaExcepcionalBarberoRepository
+                .findByBarbero_IdAndFecha(barberoId, fecha);
 
-        // 1. Obtener franjas horarias del barbero
-        List<HorarioBarbero> franjas = horarioBarberoRepository
-                .findByBarbero_IdAndDiaSemana(barberoId, dow);
+        List<FranjaHoraria> franjas = new ArrayList<>();
 
-        if (franjas == null || franjas.isEmpty()) {
-            log.debug("[HorarioService] Barbero {} no trabaja el día {} (dow={})", barberoId, fecha, dow);
+        if (franjasExcepcionales != null && !franjasExcepcionales.isEmpty()) {
+            // Usar franjas excepcionales (días festivos, eventos especiales, etc.)
+            log.debug("[HorarioService] Barbero {} trabaja día excepcional en {}: {} franjas",
+                      barberoId, fecha, franjasExcepcionales.size());
+
+            for (DiaExcepcionalBarbero deb : franjasExcepcionales) {
+                franjas.add(new FranjaHoraria(deb.getInicio(), deb.getFin()));
+            }
+        } else {
+            // Usar horarios regulares según día de la semana
+            final int dow = fecha.getDayOfWeek().getValue(); // 1=Lunes, 7=Domingo
+            List<HorarioBarbero> franjasRegulares = horarioBarberoRepository
+                    .findByBarbero_IdAndDiaSemana(barberoId, dow);
+
+            if (franjasRegulares == null || franjasRegulares.isEmpty()) {
+                log.debug("[HorarioService] Barbero {} no trabaja el día {} (dow={})", barberoId, fecha, dow);
+                return List.of();
+            }
+
+            for (HorarioBarbero hb : franjasRegulares) {
+                franjas.add(new FranjaHoraria(hb.getInicio(), hb.getFin()));
+            }
+        }
+
+        if (franjas.isEmpty()) {
+            log.debug("[HorarioService] Barbero {} no tiene franjas disponibles para {}", barberoId, fecha);
             return List.of();
         }
 
@@ -80,13 +111,13 @@ public class HorarioService {
 
         // 4. Generar slots de 30 minutos dentro de las franjas
         SortedSet<LocalTime> libres = new TreeSet<>();
-        for (HorarioBarbero hb : franjas) {
-            LocalTime inicio = parseHora(hb.getInicio());
-            LocalTime fin = parseHora(hb.getFin());
+        for (FranjaHoraria franja : franjas) {
+            LocalTime inicio = parseHora(franja.inicio);
+            LocalTime fin = parseHora(franja.fin);
 
             if (inicio == null || fin == null || fin.isBefore(inicio)) {
                 log.warn("[HorarioService] Franja inválida para barbero {}: {} - {}",
-                         barberoId, hb.getInicio(), hb.getFin());
+                         barberoId, franja.inicio, franja.fin);
                 continue;
             }
 
@@ -161,6 +192,20 @@ public class HorarioService {
         } catch (Exception e) {
             log.warn("[HorarioService] Error parseando hora: {}", hhmm, e);
             return null;
+        }
+    }
+
+    /**
+     * Clase auxiliar interna para representar una franja horaria genérica.
+     * Permite tratar uniformemente franjas regulares (HorarioBarbero) y excepcionales (DiaExcepcionalBarbero).
+     */
+    private static class FranjaHoraria {
+        final String inicio;
+        final String fin;
+
+        FranjaHoraria(String inicio, String fin) {
+            this.inicio = inicio;
+            this.fin = fin;
         }
     }
 }

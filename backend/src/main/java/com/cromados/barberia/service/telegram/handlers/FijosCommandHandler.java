@@ -42,11 +42,12 @@ import java.util.stream.Collectors;
 public class FijosCommandHandler extends BaseCommandHandler {
 
     private static final String STEP_SERVICE = "WAITING_SERVICE_FIJOS";
-    private static final String STEP_DAY = "WAITING_DAY_FIJOS";
+    private static final String STEP_DATE = "WAITING_DATE_FIJOS";
     private static final String STEP_TIME = "WAITING_TIME_FIJOS";
     private static final String STEP_REPETITIONS = "WAITING_REPETITIONS_FIJOS";
     private static final String STEP_CONFLICT_RESOLUTION = "WAITING_CONFLICT_RESOLUTION_FIJOS";
     private static final String STEP_CLIENT_NAME = "WAITING_CLIENT_NAME_FIJOS";
+    private static final String STEP_CLIENT_PHONE_SELECTION = "WAITING_CLIENT_PHONE_SELECTION_FIJOS";
     private static final String STEP_CLIENT_PHONE = "WAITING_CLIENT_PHONE_FIJOS";
     private static final String STEP_CLIENT_AGE = "WAITING_CLIENT_AGE_FIJOS";
     private static final String STEP_MEDIO_PAGO = "WAITING_MEDIO_PAGO_FIJOS";
@@ -73,11 +74,12 @@ public class FijosCommandHandler extends BaseCommandHandler {
     @Override
     public boolean canHandle(String step) {
         return STEP_SERVICE.equals(step) ||
-               STEP_DAY.equals(step) ||
+               STEP_DATE.equals(step) ||
                STEP_TIME.equals(step) ||
                STEP_REPETITIONS.equals(step) ||
                STEP_CONFLICT_RESOLUTION.equals(step) ||
                STEP_CLIENT_NAME.equals(step) ||
+               STEP_CLIENT_PHONE_SELECTION.equals(step) ||
                STEP_CLIENT_PHONE.equals(step) ||
                STEP_CLIENT_AGE.equals(step) ||
                STEP_MEDIO_PAGO.equals(step) ||
@@ -104,9 +106,11 @@ public class FijosCommandHandler extends BaseCommandHandler {
 
         return switch (action) {
             case "SFIJOS" -> handleServiceCallback(chatId, value, state);
-            case "DFIJOS" -> handleDayCallback(chatId, value, state);
+            case "DATEFIJOS" -> handleDateCallback(chatId, value, state);
             case "TFIJOS" -> handleTimeCallback(value, state);
             case "CONFLICTRES" -> handleConflictResolution(chatId, value, state);
+            case "PHONEFIJOS" -> handleSelectExistingPhone(chatId, value, state);
+            case "ADDPHONEFIJOS" -> handleAddNewPhone(state);
             case "PFIJOS" -> handleMedioPagoCallback(chatId, value, state);
             case "CFIJOS" -> handleConfirmCallback(value, state);
             default -> "❌ Acción no reconocida";
@@ -188,9 +192,9 @@ public class FijosCommandHandler extends BaseCommandHandler {
 
             state.setTempServicioId(servicioId);
             state.setTempServicio(servicio);
-            state.setStep(STEP_DAY);
+            state.setStep(STEP_DATE);
 
-            return mostrarDiasSemana(chatId, state, servicio);
+            return mostrarFechasDisponibles(chatId, state, servicio);
 
         } catch (NumberFormatException e) {
             return "❌ ID de servicio inválido.";
@@ -198,53 +202,64 @@ public class FijosCommandHandler extends BaseCommandHandler {
     }
 
     /**
-     * Muestra los días de la semana disponibles.
+     * Muestra las fechas específicas disponibles para turnos recurrentes.
+     * Solo muestra fechas que tengan horarios disponibles (regulares o excepcionales).
      */
-    private String mostrarDiasSemana(Long chatId, SessionState state, TipoCorte servicio) {
+    private String mostrarFechasDisponibles(Long chatId, SessionState state, TipoCorte servicio) {
         Barbero barbero = getBarbero(state);
 
-        // Obtener días habilitados del barbero
-        List<Integer> diasHabilitados = horarioRepo.findByBarbero_Id(barbero.getId())
-                .stream()
-                .map(HorarioBarbero::getDiaSemana)
-                .distinct()
-                .sorted()
-                .toList();
+        // Calcular próximas fechas con horarios disponibles (próximos 60 días)
+        List<LocalDate> fechasDisponibles = new ArrayList<>();
+        LocalDate fechaActual = LocalDate.now();
 
-        if (diasHabilitados.isEmpty()) {
-            return "❌ No tenés días de trabajo configurados. Configurá tus horarios en el panel web primero.";
+        for (int i = 0; i < 60 && fechasDisponibles.size() < 20; i++) {
+            LocalDate fecha = fechaActual.plusDays(i);
+
+            // Verificar si esta fecha tiene horarios disponibles
+            List<LocalTime> horarios = horarioService.horariosDisponibles(barbero.getId(), fecha);
+
+            if (!horarios.isEmpty()) {
+                fechasDisponibles.add(fecha);
+            }
+        }
+
+        if (fechasDisponibles.isEmpty()) {
+            return "❌ No hay fechas disponibles en los próximos 60 días. Configurá tus horarios en el panel web primero.";
         }
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
-        // Mapeo de día de semana a nombre y DayOfWeek
-        Map<Integer, String[]> diasMap = Map.of(
-            1, new String[]{"Lunes", "MONDAY"},
-            2, new String[]{"Martes", "TUESDAY"},
-            3, new String[]{"Miércoles", "WEDNESDAY"},
-            4, new String[]{"Jueves", "THURSDAY"},
-            5, new String[]{"Viernes", "FRIDAY"},
-            6, new String[]{"Sábado", "SATURDAY"},
-            7, new String[]{"Domingo", "SUNDAY"}
+        // Mapeo de días en español
+        Map<DayOfWeek, String> diasAbreviados = Map.of(
+            DayOfWeek.MONDAY, "Lun",
+            DayOfWeek.TUESDAY, "Mar",
+            DayOfWeek.WEDNESDAY, "Mié",
+            DayOfWeek.THURSDAY, "Jue",
+            DayOfWeek.FRIDAY, "Vie",
+            DayOfWeek.SATURDAY, "Sáb",
+            DayOfWeek.SUNDAY, "Dom"
         );
 
-        // Solo mostrar días habilitados
-        for (Integer diaSemana : diasHabilitados) {
-            String[] diaInfo = diasMap.get(diaSemana);
-            if (diaInfo != null) {
-                rows.add(messageBuilder.createSingleButtonRow(diaInfo[0], "DFIJOS_" + diaInfo[1]));
-            }
+        // Crear botones para cada fecha
+        for (LocalDate fecha : fechasDisponibles) {
+            String diaAbreviado = diasAbreviados.get(fecha.getDayOfWeek());
+            String fechaFormato = fecha.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM"));
+            String buttonText = String.format("%s %s", diaAbreviado, fechaFormato);
+
+            rows.add(messageBuilder.createSingleButtonRow(buttonText, "DATEFIJOS_" + fecha.toString()));
         }
 
         // Botón cancelar
         rows.add(messageBuilder.createCancelButton());
 
         String mensaje = String.format("""
-                📅 Día de la semana
+                📅 Seleccionar fecha inicial
 
                 Servicio: %s
 
-                ¿Qué día de la semana se va a repetir?
+                Seleccioná la fecha en la que querés que comience el turno recurrente:
+
+                (Solo se muestran fechas con horarios disponibles)
                 """, servicio.getNombre());
 
         InlineKeyboardMarkup keyboard = messageBuilder.buildInlineKeyboard(rows);
@@ -252,64 +267,51 @@ public class FijosCommandHandler extends BaseCommandHandler {
     }
 
     /**
-     * Maneja la selección del día de la semana.
+     * Maneja la selección de fecha específica.
      */
-    private String handleDayCallback(Long chatId, String dayStr, SessionState state) {
-        if (!STEP_DAY.equals(state.getStep())) {
+    private String handleDateCallback(Long chatId, String fechaStr, SessionState state) {
+        if (!STEP_DATE.equals(state.getStep())) {
             return "❌ Comando fuera de secuencia.";
         }
 
-        DayOfWeek day = switch (dayStr) {
-            case "MONDAY" -> DayOfWeek.MONDAY;
-            case "TUESDAY" -> DayOfWeek.TUESDAY;
-            case "WEDNESDAY" -> DayOfWeek.WEDNESDAY;
-            case "THURSDAY" -> DayOfWeek.THURSDAY;
-            case "FRIDAY" -> DayOfWeek.FRIDAY;
-            case "SATURDAY" -> DayOfWeek.SATURDAY;
-            case "SUNDAY" -> DayOfWeek.SUNDAY;
-            default -> null;
-        };
+        try {
+            LocalDate fechaSeleccionada = LocalDate.parse(fechaStr);
 
-        if (day == null) {
-            return "❌ Día inválido.";
+            // Guardar la fecha y el día de la semana para usar en la creación de turnos
+            state.setTempFecha(fechaSeleccionada);
+            state.setTempDayOfWeek(fechaSeleccionada.getDayOfWeek());
+
+            Barbero barbero = getBarbero(state);
+
+            // Obtener horarios disponibles para esta fecha específica
+            List<LocalTime> horariosDisponibles = horarioService.horariosDisponibles(barbero.getId(), fechaSeleccionada);
+
+            if (horariosDisponibles.isEmpty()) {
+                state.reset();
+                return String.format("""
+                        ❌ No hay horarios disponibles para el %s.
+
+                        Todos los horarios están ocupados o bloqueados.
+
+                        Usa /fijos para intentar con otra fecha.
+                        """,
+                        fechaSeleccionada.format(DATE_FMT));
+            }
+
+            state.setHorariosDisponibles(horariosDisponibles);
+            state.setStep(STEP_TIME);
+
+            return mostrarHorarios(chatId, state, fechaSeleccionada);
+
+        } catch (Exception e) {
+            return "❌ Fecha inválida.";
         }
-
-        state.setTempDayOfWeek(day);
-
-        // Calcular la próxima fecha de ese día
-        LocalDate proximaFecha = LocalDate.now();
-        while (proximaFecha.getDayOfWeek() != day) {
-            proximaFecha = proximaFecha.plusDays(1);
-        }
-
-        Barbero barbero = getBarbero(state);
-
-        // ✅ USAR HorarioService como única fuente de verdad
-        List<LocalTime> horariosDisponibles = horarioService.horariosDisponibles(barbero.getId(), proximaFecha);
-
-        if (horariosDisponibles.isEmpty()) {
-            state.reset();
-            return String.format("""
-                    ❌ No hay horarios disponibles para el próximo %s (%s).
-
-                    Todos los horarios están ocupados o bloqueados.
-
-                    Usa /fijos para intentar con otro día.
-                    """,
-                    day.getDisplayName(java.time.format.TextStyle.FULL, new Locale("es", "AR")),
-                    proximaFecha.format(DATE_FMT));
-        }
-
-        state.setHorariosDisponibles(horariosDisponibles);
-        state.setStep(STEP_TIME);
-
-        return mostrarHorarios(chatId, state, day);
     }
 
     /**
-     * Muestra horarios disponibles.
+     * Muestra horarios disponibles para la fecha seleccionada.
      */
-    private String mostrarHorarios(Long chatId, SessionState state, DayOfWeek day) {
+    private String mostrarHorarios(Long chatId, SessionState state, LocalDate fecha) {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         // Mostrar máximo 20 horarios
@@ -325,15 +327,15 @@ public class FijosCommandHandler extends BaseCommandHandler {
         // Botón cancelar
         rows.add(messageBuilder.createCancelButton());
 
-        String dayName = day.getDisplayName(java.time.format.TextStyle.FULL, new Locale("es", "AR"));
+        String dayName = fecha.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, new Locale("es", "AR"));
         String mensaje = String.format("""
                 ⏰ Horario
 
                 Servicio: %s
-                Día: %s
+                Fecha: %s (%s)
 
                 Seleccioná la hora:
-                """, state.getTempServicio().getNombre(), dayName);
+                """, state.getTempServicio().getNombre(), fecha.format(DATE_FMT), dayName);
 
         InlineKeyboardMarkup keyboard = messageBuilder.buildInlineKeyboard(rows);
         return editMessageWithButtons(chatId, mensaje, keyboard, state);
@@ -358,8 +360,9 @@ public class FijosCommandHandler extends BaseCommandHandler {
                     ¿Cuántas semanas querés que se repita este turno?
 
                     Ejemplo: 5 (para 5 semanas consecutivas)
+                    Máximo: 52 semanas (1 año)
 
-                    Escribí un número entre 1 y 12:
+                    Escribí un número entre 1 y 52:
                     """;
 
         } catch (Exception e) {
@@ -383,21 +386,22 @@ public class FijosCommandHandler extends BaseCommandHandler {
         try {
             int repetitions = Integer.parseInt(text.trim());
 
-            if (repetitions < 1 || repetitions > 12) {
-                return "❌ El número debe estar entre 1 y 12.\n\nIngresá la cantidad de semanas:";
+            if (repetitions < 1 || repetitions > 52) {
+                return "❌ El número debe estar entre 1 y 52.\n\nIngresá la cantidad de semanas:";
             }
 
             state.setTempRepetitions(repetitions);
 
-            // Calcular fechas
-            LocalDate proximaFecha = LocalDate.now();
-            while (proximaFecha.getDayOfWeek() != state.getTempDayOfWeek()) {
-                proximaFecha = proximaFecha.plusDays(1);
+            // Calcular fechas usando la fecha inicial seleccionada
+            LocalDate fechaInicial = state.getTempFecha();
+            if (fechaInicial == null) {
+                state.reset();
+                return "❌ Error: fecha inicial no encontrada. Iniciá el comando nuevamente con /fijos";
             }
 
             List<LocalDate> fechas = new ArrayList<>();
             for (int i = 0; i < repetitions; i++) {
-                fechas.add(proximaFecha.plusWeeks(i));
+                fechas.add(fechaInicial.plusWeeks(i));
             }
 
             state.setTempFechasFijos(fechas);
@@ -528,38 +532,31 @@ public class FijosCommandHandler extends BaseCommandHandler {
                     """;
         } else if ("CHANGE".equals(value)) {
             // Cambiar horario - volver a mostrar horarios disponibles
-            DayOfWeek day = state.getTempDayOfWeek();
-            if (day == null) {
+            LocalDate fechaInicial = state.getTempFecha();
+            if (fechaInicial == null) {
                 state.reset();
-                return "❌ Error: día no encontrado. Iniciá el comando nuevamente con /fijos";
-            }
-
-            // Recalcular horarios disponibles
-            LocalDate proximaFecha = LocalDate.now();
-            while (proximaFecha.getDayOfWeek() != day) {
-                proximaFecha = proximaFecha.plusDays(1);
+                return "❌ Error: fecha no encontrada. Iniciá el comando nuevamente con /fijos";
             }
 
             Barbero barbero = getBarbero(state);
-            List<LocalTime> horariosDisponibles = horarioService.horariosDisponibles(barbero.getId(), proximaFecha);
+            List<LocalTime> horariosDisponibles = horarioService.horariosDisponibles(barbero.getId(), fechaInicial);
 
             if (horariosDisponibles.isEmpty()) {
                 state.reset();
                 return String.format("""
-                        ❌ No hay horarios disponibles para el próximo %s (%s).
+                        ❌ No hay horarios disponibles para el %s.
 
                         Todos los horarios están ocupados o bloqueados.
 
-                        Usa /fijos para intentar con otro día.
+                        Usa /fijos para intentar con otra fecha.
                         """,
-                        day.getDisplayName(java.time.format.TextStyle.FULL, new Locale("es", "AR")),
-                        proximaFecha.format(DATE_FMT));
+                        fechaInicial.format(DATE_FMT));
             }
 
             state.setHorariosDisponibles(horariosDisponibles);
             state.setStep(STEP_TIME);
 
-            return mostrarHorarios(chatId, state, day);
+            return mostrarHorarios(chatId, state, fechaInicial);
         } else if ("MOVER".equals(value)) {
             // Mostrar turnos que están ocupando los horarios conflictivos
             return mostrarTurnosAMover(state);
@@ -668,13 +665,25 @@ public class FijosCommandHandler extends BaseCommandHandler {
         }
 
         state.setTempClienteNombre(text.trim());
-        state.setStep(STEP_CLIENT_PHONE);
 
-        return """
-                📱 Ingresá el teléfono del cliente:
+        // Buscar números de teléfono asociados a este nombre
+        List<Object[]> clientesEncontrados = turnoRepo.findClientesByNombre(text.trim());
 
-                Ejemplo: +5491123456789 o 1123456789
-                """;
+        if (clientesEncontrados.isEmpty()) {
+            // No hay números asociados, solicitar teléfono normalmente
+            state.setStep(STEP_CLIENT_PHONE);
+            return """
+                    📱 Ingresá el teléfono del cliente:
+
+                    Ejemplo: +5491123456789 o 1123456789
+                    """;
+        } else {
+            // Hay números asociados, mostrar opciones
+            state.setStep(STEP_CLIENT_PHONE_SELECTION);
+            // Guardar los clientes encontrados en la sesión para usarlos después
+            state.setTempClientesEncontrados(clientesEncontrados);
+            return mostrarOpcionesTelefono(state, clientesEncontrados);
+        }
     }
 
     /**
@@ -764,7 +773,7 @@ public class FijosCommandHandler extends BaseCommandHandler {
         String mensaje = "💳 Medio de pago\n\n¿Cómo pagó el cliente?";
         InlineKeyboardMarkup keyboard = messageBuilder.buildInlineKeyboard(rows);
 
-        return sendMessageWithButtons(chatId, mensaje, keyboard);
+        return editMessageWithButtons(chatId, mensaje, keyboard, state);
     }
 
     /**
@@ -1015,5 +1024,110 @@ public class FijosCommandHandler extends BaseCommandHandler {
             state.reset();
             return "❌ Error creando turnos: " + e.getMessage();
         }
+    }
+
+    /**
+     * Muestra opciones de teléfono encontrados para el cliente.
+     */
+    private String mostrarOpcionesTelefono(SessionState state, List<Object[]> clientesEncontrados) {
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        String mensaje;
+
+        if (clientesEncontrados.size() == 1) {
+            // Un solo número encontrado
+            mensaje = String.format("""
+                    📱 Encontré este número asociado a %s:
+
+                    Podés seleccionarlo o agregar uno nuevo:
+                    """, state.getTempClienteNombre());
+        } else {
+            // Múltiples números encontrados
+            mensaje = String.format("""
+                    📱 Encontré %d números asociados a %s:
+
+                    Seleccioná uno o agregá uno nuevo:
+                    """, clientesEncontrados.size(), state.getTempClienteNombre());
+        }
+
+        // Botones para cada número encontrado
+        for (int i = 0; i < clientesEncontrados.size(); i++) {
+            Object[] cliente = clientesEncontrados.get(i);
+            String telefono = (String) cliente[0];
+            Integer edad = (Integer) cliente[1];
+
+            // Mostrar solo últimos 4 dígitos del teléfono para privacidad
+            String telefonoDisplay = telefono.length() > 4
+                ? "..." + telefono.substring(telefono.length() - 4)
+                : telefono;
+
+            rows.add(messageBuilder.createSingleButtonRow(
+                String.format("📞 %s (%d años)", telefonoDisplay, edad),
+                "PHONEFIJOS_" + i
+            ));
+        }
+
+        // Botón para agregar nuevo número
+        rows.add(messageBuilder.createSingleButtonRow(
+            "➕ Agregar otro número",
+            "ADDPHONEFIJOS"
+        ));
+
+        // Botón cancelar
+        rows.add(messageBuilder.createCancelButton());
+
+        InlineKeyboardMarkup keyboard = messageBuilder.buildInlineKeyboard(rows);
+        return sendMessageWithButtons(state.getBarbero().getTelegramChatId(), mensaje, keyboard);
+    }
+
+    /**
+     * Maneja la selección de un teléfono existente.
+     */
+    private String handleSelectExistingPhone(Long chatId, String indexStr, SessionState state) {
+        if (!STEP_CLIENT_PHONE_SELECTION.equals(state.getStep())) {
+            return "❌ Comando fuera de secuencia.";
+        }
+
+        try {
+            int index = Integer.parseInt(indexStr);
+            List<Object[]> clientes = state.getTempClientesEncontrados();
+
+            if (index < 0 || index >= clientes.size()) {
+                return "❌ Selección inválida.";
+            }
+
+            Object[] clienteSeleccionado = clientes.get(index);
+            String telefono = (String) clienteSeleccionado[0];
+            Integer edad = (Integer) clienteSeleccionado[1];
+
+            // Guardar teléfono y edad
+            state.setTempClienteTelefono(telefono);
+            state.setTempClienteEdad(edad);
+
+            // Ir directo a medio de pago (saltar input de edad)
+            state.setStep(STEP_MEDIO_PAGO);
+            return mostrarMediosPago(chatId, state);
+
+        } catch (NumberFormatException e) {
+            return "❌ Índice inválido.";
+        }
+    }
+
+    /**
+     * Maneja cuando el usuario quiere agregar un nuevo número.
+     */
+    private String handleAddNewPhone(SessionState state) {
+        if (!STEP_CLIENT_PHONE_SELECTION.equals(state.getStep())) {
+            return "❌ Comando fuera de secuencia.";
+        }
+
+        // Cambiar a paso de ingreso de teléfono
+        state.setStep(STEP_CLIENT_PHONE);
+
+        return """
+                📱 Ingresá el nuevo teléfono del cliente:
+
+                Ejemplo: +5491123456789 o 1123456789
+                """;
     }
 }
