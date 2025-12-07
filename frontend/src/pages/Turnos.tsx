@@ -104,7 +104,6 @@ export default function Turnos() {
 
   // Calendario para sesión actual
   const [monthOffset, setMonthOffset] = useState(0);
-  const [weekOpenDays, setWeekOpenDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
   const [diasConHorarios, setDiasConHorarios] = useState<Set<string>>(new Set());
   const [autoAdvanced, setAutoAdvanced] = useState(false);
@@ -199,33 +198,6 @@ export default function Turnos() {
     })();
   }, [barberoId]);
 
-  // Traer horarios del barbero
-  useEffect(() => {
-    (async () => {
-      if (!barberoId) {
-        setWeekOpenDays(new Set([1, 2, 3, 4, 5, 6]));
-        return;
-      }
-      try {
-        const res = await fetch(`${BASE}/barberos/${barberoId}/horarios-semana`);
-        if (!res.ok) throw new Error();
-        const arr: Array<{ diaSemana: number; inicio: string; fin: string }> = await res.json();
-
-        const days = new Set<number>();
-
-        for (const h of arr) {
-          const n = Number(h.diaSemana);
-          const dow = n === 0 ? 7 : n;
-          days.add(dow);
-        }
-
-        setWeekOpenDays(days);
-      } catch {
-        // defaults
-      }
-    })();
-  }, [barberoId]);
-
   // Inicializar sesiones cuando se selecciona servicio principal
   useEffect(() => {
     if (servicioPrincipalId) {
@@ -292,11 +264,7 @@ export default function Turnos() {
       const base = new Date();
       base.setDate(1);
       base.setMonth(base.getMonth() + monthOffset);
-      const dias = buildMonthDays(base.getFullYear(), base.getMonth()).filter((opt) => {
-        const dd = dateFromISOLocal(opt.iso).getDay();
-        const dow = dd === 0 ? 7 : dd;
-        return weekOpenDays.has(dow);
-      });
+      const dias = buildMonthDays(base.getFullYear(), base.getMonth());
 
       const nuevosDiasConHorarios = new Set<string>();
 
@@ -325,7 +293,7 @@ export default function Turnos() {
         setAutoAdvanced(true);
       }
     })();
-  }, [barberoId, monthOffset, step, weekOpenDays, autoAdvanced]);
+  }, [barberoId, monthOffset, step, autoAdvanced]);
 
   // Resetear cuando cambia el barbero o cuando entra al step de fecha (step 4)
   useEffect(() => {
@@ -343,16 +311,13 @@ export default function Turnos() {
   }, [step]);
 
   const monthDays = useMemo(() => {
-    const base = new Date();
-    base.setDate(1);
-    base.setMonth(base.getMonth() + monthOffset);
-    return buildMonthDays(base.getFullYear(), base.getMonth()).filter((opt) => {
-      const dd = dateFromISOLocal(opt.iso).getDay();
-      const dow = dd === 0 ? 7 : dd;
-      // Solo mostrar días laborables Y que tengan horarios disponibles
-      return weekOpenDays.has(dow) && diasConHorarios.has(opt.iso);
-    });
-  }, [monthOffset, weekOpenDays, diasConHorarios]);
+  const base = new Date();
+  base.setDate(1);
+  base.setMonth(base.getMonth() + monthOffset);
+  return buildMonthDays(base.getFullYear(), base.getMonth()).filter((opt) => {
+    return diasConHorarios.has(opt.iso);
+  });
+}, [monthOffset, diasConHorarios]);
 
   const labelMes = useMemo(() => {
     const base = new Date();
