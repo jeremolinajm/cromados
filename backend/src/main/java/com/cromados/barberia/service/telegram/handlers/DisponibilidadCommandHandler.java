@@ -1,6 +1,7 @@
 package com.cromados.barberia.service.telegram.handlers;
 
 import com.cromados.barberia.model.Barbero;
+import com.cromados.barberia.model.DiaExcepcionalBarbero;
 import com.cromados.barberia.model.HorarioBarbero;
 import com.cromados.barberia.repository.*;
 import com.cromados.barberia.service.HorarioService;
@@ -35,6 +36,8 @@ public class DisponibilidadCommandHandler extends BaseCommandHandler {
 
     private static final String STEP_MONTH = "WAITING_MONTH_DISP";
 
+    private final DiaExcepcionalBarberoRepository diaExcepcionalRepo;
+
     public DisponibilidadCommandHandler(
             TurnoRepository turnoRepo,
             BarberoRepository barberoRepo,
@@ -43,9 +46,11 @@ public class DisponibilidadCommandHandler extends BaseCommandHandler {
             HorarioBarberoRepository horarioRepo,
             TelegramMessageBuilder messageBuilder,
             TelegramLongPollingBot bot,
-            HorarioService horarioService
+            HorarioService horarioService,
+            DiaExcepcionalBarberoRepository diaExcepcionalRepo
     ) {
         super(turnoRepo, barberoRepo, tipoCorteRepo, sucursalRepo, horarioRepo, messageBuilder, bot, horarioService);
+        this.diaExcepcionalRepo = diaExcepcionalRepo;
     }
 
     @Override
@@ -148,6 +153,7 @@ public class DisponibilidadCommandHandler extends BaseCommandHandler {
 
     /**
      * Muestra la disponibilidad día por día para un mes completo.
+     * Considera tanto horarios regulares como días excepcionales.
      */
     private String mostrarDisponibilidadMes(Barbero barbero, YearMonth mes) {
         LocalDate inicio = mes.atDay(1);
@@ -156,6 +162,22 @@ public class DisponibilidadCommandHandler extends BaseCommandHandler {
 
         StringBuilder sb = new StringBuilder(String.format("📅 Disponibilidad - %s\n\n",
                 mes.format(DateTimeFormatter.ofPattern("MMMM yyyy", new Locale("es", "AR")))));
+
+        // Obtener días de la semana con horarios regulares
+        List<Integer> diasRegulares = horarioRepo.findByBarbero_Id(barbero.getId())
+                .stream()
+                .map(HorarioBarbero::getDiaSemana)
+                .distinct()
+                .toList();
+
+        // Obtener fechas excepcionales en el rango del mes
+        List<LocalDate> fechasExcepcionales = diaExcepcionalRepo
+                .findByBarbero_IdAndFechaGreaterThanEqualOrderByFechaAsc(barbero.getId(), inicio)
+                .stream()
+                .map(DiaExcepcionalBarbero::getFecha)
+                .filter(fecha -> !fecha.isAfter(fin))
+                .distinct()
+                .toList();
 
         LocalDate fecha = inicio;
         int diasConHorarios = 0;
@@ -167,10 +189,12 @@ public class DisponibilidadCommandHandler extends BaseCommandHandler {
                 continue;
             }
 
+            // Verificar si la fecha tiene horarios (regulares o excepcionales)
             int diaSemana = fecha.getDayOfWeek().getValue();
-            List<HorarioBarbero> horarios = horarioRepo.findByBarbero_IdAndDiaSemana(barbero.getId(), diaSemana);
+            boolean tieneHorariosRegulares = diasRegulares.contains(diaSemana);
+            boolean tieneHorariosExcepcionales = fechasExcepcionales.contains(fecha);
 
-            if (!horarios.isEmpty()) {
+            if (tieneHorariosRegulares || tieneHorariosExcepcionales) {
                 // ✅ USAR HorarioService como única fuente de verdad
                 List<LocalTime> disponibles = horarioService.horariosDisponibles(barbero.getId(), fecha);
 

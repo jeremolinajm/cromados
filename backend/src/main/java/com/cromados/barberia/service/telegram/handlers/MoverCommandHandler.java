@@ -1,6 +1,7 @@
 package com.cromados.barberia.service.telegram.handlers;
 
 import com.cromados.barberia.model.Barbero;
+import com.cromados.barberia.model.DiaExcepcionalBarbero;
 import com.cromados.barberia.model.HorarioBarbero;
 import com.cromados.barberia.model.Turno;
 import com.cromados.barberia.repository.*;
@@ -46,6 +47,8 @@ public class MoverCommandHandler extends BaseCommandHandler {
     private static final String STEP_NEW_TIME = "WAITING_NEW_TIME_MOVER";
     private static final String STEP_CONFIRM = "WAITING_CONFIRM_MOVER";
 
+    private final DiaExcepcionalBarberoRepository diaExcepcionalRepo;
+
     public MoverCommandHandler(
             TurnoRepository turnoRepo,
             BarberoRepository barberoRepo,
@@ -54,9 +57,11 @@ public class MoverCommandHandler extends BaseCommandHandler {
             HorarioBarberoRepository horarioRepo,
             TelegramMessageBuilder messageBuilder,
             TelegramLongPollingBot bot,
-            com.cromados.barberia.service.HorarioService horarioService
+            com.cromados.barberia.service.HorarioService horarioService,
+            DiaExcepcionalBarberoRepository diaExcepcionalRepo
     ) {
         super(turnoRepo, barberoRepo, tipoCorteRepo, sucursalRepo, horarioRepo, messageBuilder, bot, horarioService);
+        this.diaExcepcionalRepo = diaExcepcionalRepo;
     }
 
     @Override
@@ -243,6 +248,7 @@ public class MoverCommandHandler extends BaseCommandHandler {
 
     /**
      * Muestra días del mes seleccionado.
+     * Considera tanto horarios regulares como días excepcionales.
      */
     private String showDaySelection(Long chatId, SessionState state) {
         YearMonth yearMonth = state.getTempYearMonth();
@@ -252,29 +258,41 @@ public class MoverCommandHandler extends BaseCommandHandler {
 
         Barbero barbero = getBarbero(state);
 
-        // Obtener días de la semana habilitados del barbero
-        List<Integer> diasHabilitados = horarioRepo.findByBarbero_Id(barbero.getId())
+        // Obtener días de la semana habilitados del barbero (horarios regulares)
+        List<Integer> diasHabilitadosRegulares = horarioRepo.findByBarbero_Id(barbero.getId())
                 .stream()
                 .map(com.cromados.barberia.model.HorarioBarbero::getDiaSemana)
                 .distinct()
                 .toList();
 
-        if (diasHabilitados.isEmpty()) {
+        // Obtener fechas con días excepcionales en el rango del mes
+        List<LocalDate> fechasExcepcionales = diaExcepcionalRepo
+                .findByBarbero_IdAndFechaGreaterThanEqualOrderByFechaAsc(barbero.getId(), inicio)
+                .stream()
+                .map(DiaExcepcionalBarbero::getFecha)
+                .filter(fecha -> !fecha.isAfter(fin))
+                .distinct()
+                .toList();
+
+        if (diasHabilitadosRegulares.isEmpty() && fechasExcepcionales.isEmpty()) {
             state.reset();
             return "❌ No tenés horarios configurados. Configurá tus horarios en el panel web.";
         }
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
-        // Mostrar solo días del mes que coincidan con días habilitados del barbero
+        // Mostrar solo días del mes que coincidan con días habilitados del barbero O días excepcionales
         for (LocalDate fecha = inicio; !fecha.isAfter(fin); fecha = fecha.plusDays(1)) {
             if (fecha.isBefore(hoy)) {
                 continue; // Saltar días pasados
             }
 
-            // Verificar si el día de la semana está habilitado para el barbero
+            // Verificar si el día de la semana está habilitado para el barbero O si es un día excepcional
             int diaSemana = fecha.getDayOfWeek().getValue();
-            if (!diasHabilitados.contains(diaSemana)) {
+            boolean esRegular = diasHabilitadosRegulares.contains(diaSemana);
+            boolean esExcepcional = fechasExcepcionales.contains(fecha);
+
+            if (!esRegular && !esExcepcional) {
                 continue; // Saltar días no habilitados
             }
 

@@ -58,6 +58,8 @@ public class AgendarCommandHandler extends BaseCommandHandler {
     private static final String STEP_CLIENT_AGE = "WAITING_CLIENT_AGE";
     private static final String STEP_CONFIRM = "CONFIRM_BLOCK";
 
+    private final DiaExcepcionalBarberoRepository diaExcepcionalRepo;
+
     public AgendarCommandHandler(
             TurnoRepository turnoRepo,
             BarberoRepository barberoRepo,
@@ -66,9 +68,11 @@ public class AgendarCommandHandler extends BaseCommandHandler {
             HorarioBarberoRepository horarioRepo,
             TelegramMessageBuilder messageBuilder,
             TelegramLongPollingBot bot,
-            HorarioService horarioService
+            HorarioService horarioService,
+            DiaExcepcionalBarberoRepository diaExcepcionalRepo
     ) {
         super(turnoRepo, barberoRepo, tipoCorteRepo, sucursalRepo, horarioRepo, messageBuilder, bot, horarioService);
+        this.diaExcepcionalRepo = diaExcepcionalRepo;
     }
 
     @Override
@@ -242,6 +246,7 @@ public class AgendarCommandHandler extends BaseCommandHandler {
 
     /**
      * Muestra días del mes seleccionado.
+     * Considera tanto horarios regulares como días excepcionales.
      */
     private String showDaySelection(Long chatId, SessionState state) {
         YearMonth yearMonth = state.getTempYearMonth();
@@ -251,14 +256,23 @@ public class AgendarCommandHandler extends BaseCommandHandler {
 
         Barbero barbero = getBarbero(state);
 
-        // Obtener días de la semana habilitados del barbero
-        List<Integer> diasHabilitados = horarioRepo.findByBarbero_Id(barbero.getId())
+        // Obtener días de la semana habilitados del barbero (horarios regulares)
+        List<Integer> diasHabilitadosRegulares = horarioRepo.findByBarbero_Id(barbero.getId())
                 .stream()
                 .map(HorarioBarbero::getDiaSemana)
                 .distinct()
                 .toList();
 
-        if (diasHabilitados.isEmpty()) {
+        // Obtener fechas con días excepcionales en el rango del mes
+        List<LocalDate> fechasExcepcionales = diaExcepcionalRepo
+                .findByBarbero_IdAndFechaGreaterThanEqualOrderByFechaAsc(barbero.getId(), inicio)
+                .stream()
+                .map(DiaExcepcionalBarbero::getFecha)
+                .filter(fecha -> !fecha.isAfter(fin))
+                .distinct()
+                .toList();
+
+        if (diasHabilitadosRegulares.isEmpty() && fechasExcepcionales.isEmpty()) {
             state.reset();
             return "❌ No tenés horarios configurados. Configurá tus horarios en el panel web.";
         }
@@ -270,9 +284,12 @@ public class AgendarCommandHandler extends BaseCommandHandler {
                 continue; // Saltar días pasados
             }
 
-            // Verificar si el día de la semana está habilitado para el barbero
+            // Verificar si el día de la semana está habilitado para el barbero O si es un día excepcional
             int diaSemana = fecha.getDayOfWeek().getValue();
-            if (!diasHabilitados.contains(diaSemana)) {
+            boolean esRegular = diasHabilitadosRegulares.contains(diaSemana);
+            boolean esExcepcional = fechasExcepcionales.contains(fecha);
+
+            if (!esRegular && !esExcepcional) {
                 continue; // Saltar días no habilitados
             }
 
@@ -350,25 +367,29 @@ public class AgendarCommandHandler extends BaseCommandHandler {
 
     /**
      * Procesa la fecha seleccionada y muestra horarios disponibles.
+     * Considera tanto horarios regulares como días excepcionales.
      */
     private String procesarFechaSeleccionada(Long chatId, LocalDate fecha, SessionState state) {
         Barbero barbero = getBarbero(state);
 
+        // Verificar si hay horarios regulares O días excepcionales para esta fecha
         int diaSemana = fecha.getDayOfWeek().getValue();
-        List<HorarioBarbero> horarios = horarioRepo.findByBarbero_IdAndDiaSemana(barbero.getId(), diaSemana);
+        List<HorarioBarbero> horariosRegulares = horarioRepo.findByBarbero_IdAndDiaSemana(barbero.getId(), diaSemana);
+        List<DiaExcepcionalBarbero> horariosExcepcionales = diaExcepcionalRepo.findByBarbero_IdAndFecha(barbero.getId(), fecha);
 
-        if (horarios.isEmpty()) {
+        if (horariosRegulares.isEmpty() && horariosExcepcionales.isEmpty()) {
             String dia = fecha.getDayOfWeek().getDisplayName(
                     java.time.format.TextStyle.FULL,
                     new Locale("es", "AR")
             );
-            return String.format("❌ No trabajás los %s.\n\nSeleccioná otra fecha.", dia);
+            return String.format("❌ No trabajás el %s.\n\nSeleccioná otra fecha.", fecha.format(DATE_FMT));
         }
 
         state.setTempFecha(fecha);
         state.setStep(STEP_TIME);
 
         // ✅ USAR HorarioService como única fuente de verdad
+        // HorarioService ya maneja la prioridad entre horarios excepcionales y regulares
         List<LocalTime> horariosDisponibles = horarioService.horariosDisponibles(barbero.getId(), fecha);
         state.setHorariosDisponibles(horariosDisponibles);
 
