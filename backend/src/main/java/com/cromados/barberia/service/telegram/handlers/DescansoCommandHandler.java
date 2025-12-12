@@ -306,6 +306,7 @@ public class DescansoCommandHandler extends BaseCommandHandler {
                     java.time.format.TextStyle.FULL,
                     new Locale("es", "AR")
             );
+            state.reset();
             return String.format("❌ No trabajás el %s.\n\nSeleccioná otra fecha.", fecha.format(DATE_FMT));
         }
 
@@ -318,6 +319,7 @@ public class DescansoCommandHandler extends BaseCommandHandler {
         state.setHorariosDisponibles(horariosDisponibles);
 
         if (horariosDisponibles.isEmpty()) {
+            state.reset();
             return String.format("""
                 ℹ️ No hay horarios disponibles en %s.
                 Todos los horarios ya están bloqueados.
@@ -377,6 +379,7 @@ public class DescansoCommandHandler extends BaseCommandHandler {
                     .toList();
 
             if (horariosPosteriores.isEmpty()) {
+                state.reset();
                 return "❌ No hay horarios posteriores disponibles. Empezá de nuevo con /descanso.";
             }
 

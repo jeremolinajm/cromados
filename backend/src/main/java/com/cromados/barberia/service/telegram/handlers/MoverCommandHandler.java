@@ -349,12 +349,14 @@ public class MoverCommandHandler extends BaseCommandHandler {
             try {
                 nuevaFecha = LocalDate.parse(text, DATE_FMT);
             } catch (DateTimeParseException e) {
-                return "❌ Formato inválido. Usá DD/MM/YYYY (ejemplo: 25/12/2024) o escribí 'hoy'";
+                state.reset();
+                return "❌ Formato inválido. Usá /mover para intentar de nuevo.\n\nRecordá usar: DD/MM/YYYY (ejemplo: 25/12/2024)";
             }
         }
 
         if (nuevaFecha.isBefore(LocalDate.now())) {
-            return "❌ No podés mover un turno a una fecha pasada. Ingresá otra fecha:";
+            state.reset();
+            return "❌ No podés mover un turno a una fecha pasada. Usá /mover para intentar de nuevo.";
         }
 
         state.setTempFecha(nuevaFecha);
@@ -374,8 +376,8 @@ public class MoverCommandHandler extends BaseCommandHandler {
         List<LocalTime> disponibles = horarioService.horariosDisponibles(barbero.getId(), fecha);
 
         if (disponibles.isEmpty()) {
-            state.setStep(STEP_MONTH_SELECTION);
-            return "❌ No hay horarios disponibles para el " + fecha.format(DATE_FMT) + ". Seleccioná otra fecha.";
+            state.reset();
+            return "❌ No hay horarios disponibles para el " + fecha.format(DATE_FMT) + ". Usá /mover para intentar con otra fecha.";
         }
 
         // ✅ EXCLUIR el turno que estamos moviendo (ya que su slot debería estar disponible)

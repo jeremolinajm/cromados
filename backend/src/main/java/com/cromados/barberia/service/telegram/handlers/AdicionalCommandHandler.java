@@ -299,7 +299,8 @@ public class AdicionalCommandHandler extends BaseCommandHandler {
         }
 
         if (state.getTempAdicionalesIds() == null || state.getTempAdicionalesIds().isEmpty()) {
-            return "❌ No seleccionaste ningún adicional.";
+            state.reset();
+            return "❌ No seleccionaste ningún adicional. Usá /adicional para intentar de nuevo.";
         }
 
         state.setStep(STEP_CONFIRM);

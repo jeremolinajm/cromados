@@ -224,6 +224,7 @@ public class FijosCommandHandler extends BaseCommandHandler {
         }
 
         if (fechasDisponibles.isEmpty()) {
+            state.reset();
             return "❌ No hay fechas disponibles en los próximos 60 días. Configurá tus horarios en el panel web primero.";
         }
 
@@ -773,7 +774,7 @@ public class FijosCommandHandler extends BaseCommandHandler {
         String mensaje = "💳 Medio de pago\n\n¿Cómo pagó el cliente?";
         InlineKeyboardMarkup keyboard = messageBuilder.buildInlineKeyboard(rows);
 
-        return editMessageWithButtons(chatId, mensaje, keyboard, state);
+        return sendMessageWithButtons(chatId, mensaje, keyboard);
     }
 
     /**
@@ -864,6 +865,7 @@ public class FijosCommandHandler extends BaseCommandHandler {
         }
 
         if (disponibles == 0) {
+            state.reset();
             return "❌ Todos los horarios están ocupados. No se pueden crear turnos.";
         }
 

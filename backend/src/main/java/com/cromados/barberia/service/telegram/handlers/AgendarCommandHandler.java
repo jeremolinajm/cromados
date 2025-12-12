@@ -354,14 +354,16 @@ public class AgendarCommandHandler extends BaseCommandHandler {
                 fecha = LocalDate.parse(text, DATE_FMT);
 
                 if (fecha.isBefore(LocalDate.now())) {
-                    return "❌ La fecha no puede ser pasada.\n\nIngresá otra fecha (DD/MM/YYYY) o escribí 'hoy':";
+                    state.reset();
+                    return "❌ La fecha no puede ser pasada. Usá /agendar para intentar de nuevo.";
                 }
             }
 
             return procesarFechaSeleccionada(chatId, fecha, state);
 
         } catch (DateTimeParseException e) {
-            return "❌ Formato incorrecto.\n\nUsa: DD/MM/YYYY (ej: 25/01/2025)";
+            state.reset();
+            return "❌ Formato incorrecto. Usá /agendar para intentar de nuevo.\n\nRecordá usar: DD/MM/YYYY (ej: 25/01/2025)";
         }
     }
 
@@ -382,7 +384,8 @@ public class AgendarCommandHandler extends BaseCommandHandler {
                     java.time.format.TextStyle.FULL,
                     new Locale("es", "AR")
             );
-            return String.format("❌ No trabajás el %s.\n\nSeleccioná otra fecha.", fecha.format(DATE_FMT));
+            state.reset();
+            return String.format("❌ No trabajás el %s. Usá /agendar para seleccionar otra fecha.", fecha.format(DATE_FMT));
         }
 
         state.setTempFecha(fecha);
